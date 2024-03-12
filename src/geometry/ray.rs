@@ -66,10 +66,32 @@ impl Ray {
             })
         }
     }
+
+    pub fn first_point_hit_by_ray<'a>(&self, objects: Vec<&'a Sphere>) -> Option<HitInfo<'a>> {
+        let mut hit_info_closest_point = HitInfo {
+            object: objects[0],
+            point_hit: Point {
+                x: 0.,
+                y: 0.,
+                z: 0.,
+            },
+            hit_distance: f64::MAX,
+        };
+        let mut ray_has_hit_object = false;
+        for object in objects {
+            if let Some(hit_info) = self.intersect(object) {
+                if hit_info.hit_distance <= hit_info_closest_point.hit_distance {
+                    hit_info_closest_point = hit_info;
+                    // no else, it means the point is further away
                 }
+                ray_has_hit_object = true
             }
         }
-        
+        if ray_has_hit_object {
+            Some(hit_info_closest_point)
+        } else {
+            None
+        }
     }
 }
 
