@@ -1,6 +1,6 @@
-use super::vector::{Vector, UnitVector, BaseVector};
-use super::point::Point;
 use super::object::Sphere;
+use super::point::Point;
+use super::vector::{UnitVector, Vector};
 
 pub struct Ray {
     pub origin: Point,
@@ -8,23 +8,25 @@ pub struct Ray {
 }
 
 impl Ray {
-
-    fn new_from_points(origin: &Point, destination: &Point) -> Self {
+    pub fn new_from_points(origin: &Point, destination: &Point) -> Self {
         let dest = UnitVector::new_from_points(origin, destination);
-        Ray {origin : *origin, direction : dest}
+        Ray {
+            origin: *origin,
+            direction: dest,
+        }
     }
-    fn point_at_a_distance(&self, scalar: f64) -> Point {
+    pub fn point_at_a_distance(&self, scalar: f64) -> Point {
         let Ray { origin, direction } = self;
         let total_displacement = scalar * direction;
         origin + &total_displacement
     }
 
-    fn intersect<'a> (object: &'a Sphere, ray: &Ray) -> Option<(&'a Sphere, f64)> {
+    pub fn intersect<'a>(&self, object: &'a Sphere) -> Option<HitInfo<'a>> {
         /* A sphere and a ray intersect if and only if the equation:
         d^2 + 2d(u . CO) + CO^2 - r^2 = 0
         has solutions, where:
         C : sphere center
-        O : ray origin 
+        O : ray origin
         . : scalar product
         u : unit vector defining the ray
         d : distance from A to intersection point
@@ -35,28 +37,44 @@ impl Ray {
         c = CO^2 - r^2
         The equation is d^2 + bd + c = 0 (classic quadratic form)
         */
-        let vector_co = BaseVector::new_from_points(&object.center, &ray.origin);
-        let b = 2. * BaseVector::scalar_product(&ray.direction, &vector_co);
-        let c = BaseVector::scalar_product(&vector_co, &vector_co) - object.radius;
-        let delta = b*b - 4.*c;
+        let vector_co = Vector::new_from_points(&object.center, &self.origin);
+        let b = 2. * Vector::scalar_product(&self.direction.to_vector(), &vector_co);
+        let c = Vector::scalar_product(&vector_co, &vector_co) - object.radius;
+        let delta = b * b - 4. * c;
+
         if delta < 0. {
             None
-        }
-        else {
-            let first_distance = (-b - delta.sqrt())/2.;
+        } else {
+            // ? so it is possible to have non assigned value if later on we see we will always assign something to it
+            let hit_distance: f64;
+            let first_distance = (-b - delta.sqrt()) / 2.;
             if delta == 0. {
-                Some((object, first_distance))
-            }
-            else {
-                let second_distance = (-b + delta.sqrt())/2.;
+                hit_distance = first_distance;
+            } else {
+                let second_distance = (-b + delta.sqrt()) / 2.;
                 if first_distance < second_distance {
-                    Some((object, first_distance))
+                    hit_distance = first_distance;
+                } else {
+                    hit_distance = second_distance;
                 }
-                else {
-                    Some((object, second_distance))
+            }
+            let point_hit = &self.origin + &(hit_distance * &self.direction);
+            Some(HitInfo {
+                object,
+                point_hit,
+                hit_distance,
+            })
+        }
+    }
                 }
             }
         }
         
     }
+}
+
+pub struct HitInfo<'a> {
+    pub object: &'a Sphere,
+    pub point_hit: Point,
+    pub hit_distance: f64,
 }
