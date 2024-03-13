@@ -19,7 +19,7 @@ impl Sphere {
         }
     }
 
-    fn point_is_on_sphere(&self, point: &Point) -> bool {
+    pub fn point_is_on_sphere(&self, point: &Point) -> bool {
         let Point { x, y, z } = point - &self.center;
         let point_distance_to_center = Vector::norme(x, y, z);
         self.radius == point_distance_to_center
@@ -35,9 +35,9 @@ impl Sphere {
         and the vector going from the sphere point to the source, is positive
         */
         if self.point_is_on_sphere(sphere_point) {
-            let normal = Vector::new_from_points(&self.center, sphere_point);
-            let point_source_vec = Vector::new_from_points(sphere_point, source);
-            Ok(Vector::scalar_product(&normal, &point_source_vec) >= 0.)
+            let normal = Vector::new_from_points(&self.center, sphere_point)?;
+            let point_source_vec = Vector::new_from_points(sphere_point, source)?;
+            Ok(normal.scalar_product(&point_source_vec) >= 0.)
         } else {
             Err(GeometryError::PointNotOnSphere(*sphere_point, *self))
         }
@@ -56,8 +56,8 @@ impl Sphere {
         };
 
         if current_sphere.source_is_above_horizon(sphere_point, source)? {
-            let ray = Ray::new_from_points(source, sphere_point);
-            if let Some(hit_info) = ray.first_point_hit_by_ray(objects) {
+            let ray = Ray::new_from_points(source, sphere_point)?;
+            if let Some(hit_info) = ray.first_point_hit_by_ray(objects)? {
                 Ok(*sphere_point == hit_info.point_hit)
             } else {
                 Err(GeometryError::RayBetweenPointsDoesNotHitPoint(
