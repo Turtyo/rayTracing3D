@@ -1,10 +1,11 @@
+use crate::error::GeometryError;
 use crate::geometry::point::Point;
 use std::ops::Add;
 use std::ops::Div;
 use std::ops::Mul;
 use std::ops::Sub;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Vector {
     pub norme: f64,
     pub direction: UnitVector,
@@ -23,42 +24,53 @@ impl Vector {
         self.direction.z
     }
 
-    pub fn new_from_points(origin: &Point, destination: &Point) -> Self {
+    pub fn new_from_points(origin: &Point, destination: &Point) -> Result<Self, GeometryError> {
         {
             let Point { x, y, z } = destination - origin;
             Self::new_from_coordinates(x, y, z)
         }
     }
 
-    pub fn new_from_coordinates(x: f64, y: f64, z: f64) -> Self {
+    pub fn new_from_coordinates(x: f64, y: f64, z: f64) -> Result<Self, GeometryError> {
         let norme = Self::norme(x, y, z);
-        let direction = Self::normalize(x, y, z, norme);
-        Vector { norme, direction }
+        let direction = Self::normalize(x, y, z, norme)?;
+        Ok(Vector { norme, direction })
     }
 
-    pub fn scalar_product(vector_1: &Vector, vector_2: &Vector) -> f64 {
-        vector_1.norme * vector_2.norme * vector_1.direction.scalar_product(&vector_2.direction)
+    pub fn scalar_product(&self, vector_2: &Self) -> f64 {
+        self.norme * vector_2.norme * self.direction.scalar_product(&vector_2.direction)
     }
 
     pub fn norme(x: f64, y: f64, z: f64) -> f64 {
         (x * x + y * y + z * z).sqrt()
     }
 
-    fn normalize(x: f64, y: f64, z: f64, norme: f64) -> UnitVector {
+    pub fn norme_vec(&self) -> f64 {
+        let UnitVector { x, y, z } = self.direction;
+        Self::norme(self.norme * x, self.norme * y, self.norme * z)
+    }
+
+    fn normalize(x: f64, y: f64, z: f64, norme: f64) -> Result<UnitVector, GeometryError> {
         let mut unit_vector = UnitVector { x, y, z };
-        // ! need to check norme != 0 and maybe return a result ?
-        unit_vector.x /= norme;
-        unit_vector.y /= norme;
-        unit_vector.z /= norme;
+        if norme == 0. {
+            Err(GeometryError::VectorHasNormeZero)
+        } else {
+            unit_vector.x /= norme;
+            unit_vector.y /= norme;
+            unit_vector.z /= norme;
 
-        // ? is vector discarded here
+            Ok(unit_vector)
+        }
+    }
 
-        unit_vector
+    pub fn angle_with(&self, other: &Self) -> f64 {
+        let sp = self.scalar_product(other);
+        (sp / (self.norme_vec() * other.norme_vec())).acos()
     }
 }
 
 impl Add for &Vector {
-    type Output = Vector;
+    type Output = Result<Vector, GeometryError>;
     fn add(self, rhs: Self) -> Self::Output {
         let new_vector = *self;
 
@@ -89,7 +101,7 @@ impl Mul<&Vector> for f64 {
 }
 
 impl Sub for &Vector {
-    type Output = Vector;
+    type Output = Result<Vector, GeometryError>;
     fn sub(self, rhs: Self) -> Self::Output {
         let neg_vec = -1. * rhs;
         // ? is there a way to oneline this with a closure maybe
@@ -105,7 +117,7 @@ impl Div<f64> for &Vector {
 }
 
 // ! should be used in a way that this always has a norme of 1
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct UnitVector {
     x: f64,
     y: f64,
@@ -117,14 +129,14 @@ impl UnitVector {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
 
-    pub fn new_from_points(origin: &Point, destination: &Point) -> Self {
+    pub fn new_from_points(origin: &Point, destination: &Point) -> Result<Self, GeometryError> {
         {
             let Point { x, y, z } = destination - origin;
             Self::new_from_coordinates(x, y, z)
         }
     }
 
-    pub fn new_from_coordinates(x: f64, y: f64, z: f64) -> Self {
+    pub fn new_from_coordinates(x: f64, y: f64, z: f64) -> Result<Self, GeometryError> {
         let norme = Vector::norme(x, y, z);
         Vector::normalize(x, y, z, norme)
     }
@@ -155,9 +167,131 @@ impl Mul<&UnitVector> for f64 {
 }
 
 impl Add<&Vector> for &UnitVector {
-    type Output = Vector;
+    type Output = Result<Vector, GeometryError>;
     fn add(self, rhs: &Vector) -> Self::Output {
         // convert the unit vector to a Vector
         &self.to_vector() + rhs
+    }
+}
+
+/* ----- Tests ----- */
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    use float_cmp::approx_eq;
+
+    #[test]
+    fn test_new_vector_from_coordinates() -> Result<(), GeometryError> {
+        let vector = Vector::new_from_coordinates(1., 1., 1.)?;
+
+        let norme = f64::sqrt(3.);
+        let float_norme = 1. / norme;
+
+        assert_eq!(vector.norme, norme);
+        assert_eq!(vector.direction.x, float_norme);
+        assert_eq!(vector.direction.y, float_norme);
+        assert_eq!(vector.direction.z, float_norme);
+        Ok(())
+    }
+
+    #[test]
+    fn test_vector_new_from_points() -> Result<(), GeometryError> {
+        let origin = Point {
+            x: 0.,
+            y: 0.,
+            z: 0.,
+        };
+        let destination = Point {
+            x: 1.,
+            y: 1.,
+            z: 1.,
+        };
+
+        let vector = Vector::new_from_points(&origin, &destination)?;
+
+        let norme = f64::sqrt(3.);
+        let float_norme = 1. / norme;
+
+        let expected_vector = Vector {
+            norme,
+            direction: UnitVector::new_from_coordinates(float_norme, float_norme, float_norme)?,
+        };
+
+        assert_eq!(vector, expected_vector);
+        Ok(())
+    }
+
+    #[test]
+    fn test_scalar_product() -> Result<(), GeometryError> {
+        let first_vector = Vector::new_from_coordinates(-1.5, 1., 45.)?;
+        let second_vector = Vector::new_from_coordinates(0.458, -78., 12.)?;
+        let expected_value = -1.5 * 0.458 - 78. + 45. * 12.;
+
+        assert!(approx_eq!(
+            f64,
+            first_vector.scalar_product(&second_vector),
+            expected_value,
+            ulps = 5
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn test_norme() {
+        let x = 541.4856;
+        let y = 0.11457;
+        let z = f64::sqrt(42.);
+        let expected_value = (x * x + y * y + z * z).sqrt();
+        assert!(approx_eq!(
+            f64,
+            Vector::norme(x, y, z),
+            expected_value,
+            ulps = 5
+        ));
+    }
+
+    #[test]
+    fn test_norme_vec() -> Result<(), GeometryError> {
+        let vector = Vector::new_from_coordinates(0.458, -78., 12.)?;
+        let expected_value = f64::sqrt(0.458 * 0.458 + 78. * 78. + 12. * 12.);
+
+        assert!(approx_eq!(
+            f64,
+            vector.norme_vec(),
+            expected_value,
+            ulps = 5
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn test_angle_with() -> Result<(), GeometryError> {
+        let first_vector = Vector::new_from_coordinates(0., 12.5, 0.)?;
+        let a = f64::sqrt(2.) / 2.;
+        let second_vector = Vector::new_from_coordinates(a, a, 0.)?;
+
+        assert!(approx_eq!(
+            f64,
+            first_vector.angle_with(&second_vector),
+            std::f64::consts::FRAC_PI_4,
+            ulps = 5
+        ));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_return_error() {
+        assert!(Vector::new_from_coordinates(0., 0., 0.).is_err());
+        let point = Point {
+            x: 415.25454,
+            y: -54.,
+            z: 0.2254,
+        };
+        assert!(Vector::new_from_points(&point, &point).is_err());
+        assert!(UnitVector::new_from_coordinates(0., 0., 0.).is_err());
+        assert!(UnitVector::new_from_points(&point, &point).is_err());
     }
 }
