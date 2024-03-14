@@ -4,7 +4,7 @@ use super::object::Sphere;
 use super::point::Point;
 use super::vector::{UnitVector, Vector};
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Ray {
     pub origin: Point,
     pub direction: UnitVector,
@@ -32,7 +32,7 @@ impl Ray {
         O : ray origin
         . : scalar product
         u : unit vector defining the ray
-        d : distance from A to intersection point
+        d : distance from O to intersection point
         r : radius of the sphere
 
         Following, we write:
@@ -40,20 +40,26 @@ impl Ray {
         c = CO^2 - r^2
         The equation is d^2 + bd + c = 0 (classic quadratic form)
         */
+        let eps = 1.0e-12_f64;
         let vector_co = Vector::new_from_points(&object.center, &self.origin)?;
         let b = 2. * &self.direction.to_vector().scalar_product(&vector_co);
-        let c = vector_co.scalar_product(&vector_co) - object.radius;
+        let c = vector_co.scalar_product(&vector_co) - object.radius.powi(2);
         let delta = b * b - 4. * c;
 
-        if delta < 0. {
+        if cfg!(test) {
+            println!("Ray::intersect : delta = {}", delta)
+        }
+
+        if delta < -eps {
             Ok(None)
         } else {
             // ? so it is possible to have non assigned value if later on we see we will always assign something to it
             let hit_distance: f64;
-            let first_distance = (-b - delta.sqrt()) / 2.;
-            if delta == 0. {
-                hit_distance = first_distance;
+
+            if (-eps..=eps).contains(&delta) {
+                hit_distance = -b / 2.;
             } else {
+                let first_distance = (-b - delta.sqrt()) / 2.;
                 let second_distance = (-b + delta.sqrt()) / 2.;
                 if first_distance < second_distance {
                     hit_distance = first_distance;
@@ -129,4 +135,141 @@ pub struct HitInfo<'a> {
     pub object: &'a Sphere,
     pub point_hit: Point,
     pub hit_distance: f64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use float_cmp::approx_eq;
+
+    static ORIGIN: Point = Point {
+        x: 0.,
+        y: 6.5,
+        z: -2.,
+    };
+    static DESTINATION: Point = Point {
+        x: 45.,
+        y: -89.,
+        z: -0.1,
+    };
+
+    static ORIGIN_2: Point = Point {
+        x: 0.,
+        y: 0.,
+        z: 0.,
+    };
+    static DESTINATION_2: Point = Point {
+        x: 1.,
+        y: 1.,
+        z: 1.,
+    };
+
+    #[test]
+    fn test_new_from_points() -> Result<(), GeometryError> {
+        let ray = Ray::new_from_points(&ORIGIN, &DESTINATION)?;
+        let direction = UnitVector::new_from_points(&ORIGIN, &DESTINATION)?;
+
+        assert_eq!(ray.direction, direction);
+        assert_eq!(ray.origin, ORIGIN);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_point_at_a_distance() -> Result<(), GeometryError> {
+        let ray = Ray::new_from_points(&ORIGIN, &DESTINATION)?;
+        let scalar = 7.;
+        let result_point = ray.point_at_a_distance(scalar);
+
+        let expected_point = Point {
+            x: ORIGIN.x + ray.direction.x() * scalar,
+            y: ORIGIN.y + ray.direction.y() * scalar,
+            z: ORIGIN.z + ray.direction.z() * scalar,
+        };
+
+        assert_eq!(result_point, expected_point);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_intersect_none() -> Result<(), GeometryError> {
+        let center = Point {
+            x: 10.,
+            y: 10.,
+            z: 0.,
+        };
+        let outer = Point {
+            x: 9.,
+            y: 8.,
+            z: 7.,
+        };
+        let sphere = Sphere::new_from_points(&center, &outer);
+
+        let ray = Ray::new_from_points(&ORIGIN_2, &DESTINATION_2)?;
+
+        let intersect = ray.intersect(&sphere)?;
+
+        assert!(intersect.is_none());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_intersect_once() -> Result<(), GeometryError> {
+        let center = Point {
+            x: 1.,
+            y: 0.,
+            z: 1.,
+        };
+        let outer = Point {
+            x: 2. / 3.,
+            y: 2. / 3.,
+            z: 2. / 3.,
+        };
+        let sphere = Sphere::new_from_points(&center, &outer);
+
+        let ray = Ray::new_from_points(&ORIGIN_2, &DESTINATION_2)?;
+
+        let intersect = ray.intersect(&sphere)?;
+
+        assert!(intersect.is_some());
+        if let Some(result_hit) = intersect {
+            assert_eq!(result_hit.object, &sphere);
+            assert_eq!(&(result_hit.point_hit), &outer);
+            assert!(approx_eq!(f64, result_hit.hit_distance, 2. / f64::sqrt(3.)));
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_intersect_twice() -> Result<(), GeometryError> {
+        let center = Point {
+            x: 10.,
+            y: -20.,
+            z: 7.,
+        };
+        let expected_hit_point = Point {
+            x: 10.062917533594398,
+            y: -14.855747210183665,
+            z: -1.575121259692681,
+        };
+        // thank you Geogebra for the calculations
+
+        let sphere = Sphere::new_from_radius(&center, 10.);
+
+        let ray = Ray::new_from_points(&ORIGIN, &DESTINATION)?;
+
+        let intersect = ray.intersect(&sphere)?;
+
+        assert!(intersect.is_some());
+        if let Some(result_hit) = intersect {
+            assert_eq!(result_hit.object, &sphere);
+            assert_eq!(&(result_hit.point_hit), &expected_hit_point);
+            assert!(approx_eq!(f64, result_hit.hit_distance, 23.611665975469712));
+        }
+
+        Ok(())
+    }
 }
