@@ -67,3 +67,58 @@ impl Add<&Point> for &Vector {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use crate::error::GeometryError;
+
+    use super::*;
+
+    static POINT_1: Point = Point {
+        x: 0.5,
+        y: 7.,
+        z: -2.,
+    };
+    static POINT_2: Point = Point {
+        x: -10.,
+        y: 0.,
+        z: -2.,
+    };
+    // only passed as reference so no problem with declaring them here
+
+    #[test]
+    fn test_sub() {
+        let expected_point = Point {
+            x: 10.5,
+            y: 7.,
+            z: 0.,
+        };
+
+        assert_eq!(&POINT_1 - &POINT_2, expected_point);
+    }
+
+    #[test]
+    fn test_add() {
+        let expected_point = Point {
+            x: -9.5,
+            y: 7.,
+            z: -4.,
+        };
+
+        assert_eq!(&POINT_1 + &POINT_2, expected_point);
+    }
+
+    #[test]
+    fn test_add_vector() -> Result<(), GeometryError> {
+        let vector = Vector::new_from_coordinates(48.7, -154., 42.69)?;
+
+        let expected_point = Point {
+            x: 49.2,
+            y: -147.,
+            z: 40.69,
+        };
+
+        assert_eq!(&POINT_1 + &vector, expected_point);
+
+        Ok(())
+    }
+}
