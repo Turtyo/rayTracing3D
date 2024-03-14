@@ -2,7 +2,7 @@ use crate::geometry::vector::Vector;
 use std::cmp::PartialEq;
 use std::ops::{Add, Sub};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy)]
 pub struct Point {
     pub x: f64,
     pub y: f64,
@@ -10,9 +10,21 @@ pub struct Point {
 }
 
 impl Point {
+    pub fn new(x: f64, y: f64, z: f64) -> Self {
+        Point { x, y, z }
+    }
     pub fn distance(&self, other: &Point) -> f64 {
         let Point { x, y, z } = self - other;
         Vector::norme(x, y, z)
+    }
+}
+
+impl PartialEq for Point {
+    fn eq(&self, other: &Self) -> bool {
+        let Point { x, y, z } = self - other;
+        let distance = Vector::norme(x, y, z);
+        (0. ..=1e-12_f64).contains(&distance)
+        // ie if points are closer than a picometer, which is pretty small (smaller than an atom of hydrogen by a factor 10 at least)
     }
 }
 
@@ -54,3 +66,4 @@ impl Add<&Point> for &Vector {
         rhs + self
     }
 }
+
