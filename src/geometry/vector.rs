@@ -1,3 +1,5 @@
+use float_cmp::approx_eq;
+
 use crate::error::GeometryError;
 use crate::geometry::point::Point;
 use std::ops::Add;
@@ -5,7 +7,7 @@ use std::ops::Div;
 use std::ops::Mul;
 use std::ops::Sub;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug)]
 pub struct Vector {
     pub norme: f64,
     pub direction: UnitVector,
@@ -69,6 +71,12 @@ impl Vector {
     }
 }
 
+impl PartialEq for Vector {
+    fn eq(&self, other: &Self) -> bool {
+        self.direction == other.direction && approx_eq!(f64, self.norme, other.norme, ulps = 2)
+    }
+}
+
 impl Add for &Vector {
     type Output = Result<Vector, GeometryError>;
     fn add(self, rhs: Self) -> Self::Output {
@@ -117,7 +125,7 @@ impl Div<f64> for &Vector {
 }
 
 // ! should be used in a way that this always has a norme of 1
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug)]
 pub struct UnitVector {
     x: f64,
     y: f64,
@@ -125,6 +133,18 @@ pub struct UnitVector {
 }
 
 impl UnitVector {
+    pub fn x(&self) -> f64 {
+        self.x
+    }
+
+    pub fn y(&self) -> f64 {
+        self.y
+    }
+
+    pub fn z(&self) -> f64 {
+        self.z
+    }
+
     pub fn scalar_product(&self, other: &UnitVector) -> f64 {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
@@ -146,6 +166,15 @@ impl UnitVector {
             norme: 1.,
             direction: *self,
         }
+    }
+}
+
+impl PartialEq for UnitVector {
+    fn eq(&self, other: &Self) -> bool {
+        let ulp = 2;
+        approx_eq!(f64, self.x, other.x, ulps = ulp)
+            && approx_eq!(f64, self.y, other.y, ulps = ulp)
+            && approx_eq!(f64, self.z, other.z, ulps = ulp)
     }
 }
 
@@ -233,7 +262,7 @@ mod tests {
             f64,
             first_vector.scalar_product(&second_vector),
             expected_value,
-            ulps = 5
+            ulps = 2
         ));
         Ok(())
     }
@@ -248,7 +277,7 @@ mod tests {
             f64,
             Vector::norme(x, y, z),
             expected_value,
-            ulps = 5
+            ulps = 2
         ));
     }
 
@@ -261,7 +290,7 @@ mod tests {
             f64,
             vector.norme_vec(),
             expected_value,
-            ulps = 5
+            ulps = 2
         ));
         Ok(())
     }
@@ -276,7 +305,7 @@ mod tests {
             f64,
             first_vector.angle_with(&second_vector),
             std::f64::consts::FRAC_PI_4,
-            ulps = 5
+            ulps = 2
         ));
 
         Ok(())
