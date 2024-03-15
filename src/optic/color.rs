@@ -96,11 +96,8 @@ pub struct DiffusionCoefficient {
 
 impl DiffusionCoefficient {
     pub fn new(dr: f32, dg: f32, db: f32) -> Result<Self, ColorError> {
-        if (0. ..=1.).contains(&dr) || (0. ..=1.).contains(&dg) || (0. ..=1.).contains(&db) {
-            Err(ColorError::DiffusionCoefficientOOB(format!(
-                "dr : {0} | dg : {1} | db : {2}",
-                dr, dg, db
-            )))
+        if !(0. ..=1.).contains(&dr) || !(0. ..=1.).contains(&dg) || !(0. ..=1.).contains(&db) {
+            Err(ColorError::DiffusionCoefficientOOB(dr, dg, db))
         } else {
             Ok(DiffusionCoefficient { dr, dg, db })
         }
