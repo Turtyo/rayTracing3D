@@ -1,4 +1,4 @@
-use crate::geometry::{object::Sphere, point::Point};
+use crate::geometry::{point::Point, shape::Sphere};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -19,6 +19,8 @@ pub enum GeometryError {
 
 #[derive(Error, Debug)]
 pub enum ColorError {
-    #[error("Diffusion value should be a float coefficient between 0 and 1, got : {0}")]
-    DiffusionCoefficientOOB(String),
+    #[error("Diffusion value should be a float coefficient between 0 and 1, got : dr = {0} | dg = {1} | db = {2}")]
+    DiffusionCoefficientOOB(f32, f32, f32),
+    #[error("Reflection value should be a float coefficient between 0 and 1, got {0}")]
+    ReflectionCoefficientOOB(f32),
 }
