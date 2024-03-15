@@ -1,7 +1,8 @@
 use crate::error::GeometryError;
+use crate::object::Object;
 
-use super::object::Sphere;
 use super::point::Point;
+use super::shape::Sphere;
 use super::vector::{UnitVector, Vector};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -24,7 +25,7 @@ impl Ray {
         origin + &total_displacement
     }
 
-    pub fn intersect<'a>(&self, object: &'a Sphere) -> Result<Option<HitInfo<'a>>, GeometryError> {
+    pub fn intersect<'a>(&self, object: &'a Object) -> Result<Option<HitInfo<'a>>, GeometryError> {
         /* A sphere and a ray intersect if and only if the equation:
         d^2 + 2d(u . CO) + CO^2 - r^2 = 0
         has solutions, where:
@@ -41,9 +42,9 @@ impl Ray {
         The equation is d^2 + bd + c = 0 (classic quadratic form)
         */
         let eps = 1.0e-12_f64;
-        let vector_co = Vector::new_from_points(&object.center, &self.origin)?;
+        let vector_co = Vector::new_from_points(&object.shape.center, &self.origin)?;
         let b = 2. * &self.direction.to_vector().scalar_product(&vector_co);
-        let c = vector_co.scalar_product(&vector_co) - object.radius.powi(2);
+        let c = vector_co.scalar_product(&vector_co) - object.shape.radius.powi(2);
         let delta = b * b - 4. * c;
 
         if cfg!(test) {
@@ -78,7 +79,7 @@ impl Ray {
 
     pub fn first_point_hit_by_ray<'a>(
         &self,
-        objects: Vec<&'a Sphere>,
+        objects: Vec<&'a Object>, // ? should this be a reference to a vector of objects so we don't need to clone the vector when we modify things in it after
     ) -> Result<Option<HitInfo<'a>>, GeometryError> {
         let mut hit_info_closest_point = HitInfo {
             object: objects[0],
@@ -119,9 +120,12 @@ impl Ray {
             )))
         } else {
             let point_to_source_vector = Vector::new_from_points(surface_point, source)?;
-            let surface_normal_vector = Vector::new_from_points(&object.center, surface_point)?;
+            let mut surface_normal_vector = Vector::new_from_points(&object.center, surface_point)?;
             // Let D such as R(ay) = N(ormal) + D, thus D = R - N
             // the sym S is : S = N - D = N - (R - N) = 2N - R
+            // we also need a right angle between D and N for this to work, so we normalise N to the correct norme
+            let teta = point_to_source_vector.angle_with(&surface_normal_vector);
+            surface_normal_vector.norme = point_to_source_vector.norme * teta.cos();
             let sym_vector = (&(2. * &surface_normal_vector) - &point_to_source_vector)?;
             Ok(Ray {
                 origin: *surface_point,
@@ -131,14 +135,17 @@ impl Ray {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct HitInfo<'a> {
-    pub object: &'a Sphere,
+    pub object: &'a Object,
     pub point_hit: Point,
     pub hit_distance: f64,
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::optic::material::Material;
+
     use super::*;
     use float_cmp::approx_eq;
 
@@ -205,10 +212,14 @@ mod tests {
             z: 7.,
         };
         let sphere = Sphere::new_from_points(&center, &outer);
+        let object = Object {
+            shape: sphere,
+            material: Material::default(),
+        };
 
         let ray = Ray::new_from_points(&ORIGIN_2, &DESTINATION_2)?;
 
-        let intersect = ray.intersect(&sphere)?;
+        let intersect = ray.intersect(&object)?;
 
         assert!(intersect.is_none());
 
@@ -228,14 +239,18 @@ mod tests {
             z: 2. / 3.,
         };
         let sphere = Sphere::new_from_points(&center, &outer);
+        let object = Object {
+            shape: sphere,
+            material: Material::default(),
+        };
 
         let ray = Ray::new_from_points(&ORIGIN_2, &DESTINATION_2)?;
 
-        let intersect = ray.intersect(&sphere)?;
+        let intersect = ray.intersect(&object)?;
 
         assert!(intersect.is_some());
         if let Some(result_hit) = intersect {
-            assert_eq!(result_hit.object, &sphere);
+            assert_eq!(&(result_hit.object.shape), &sphere);
             assert_eq!(&(result_hit.point_hit), &outer);
             assert!(approx_eq!(f64, result_hit.hit_distance, 2. / f64::sqrt(3.)));
         }
@@ -258,17 +273,119 @@ mod tests {
         // thank you Geogebra for the calculations
 
         let sphere = Sphere::new_from_radius(&center, 10.);
+        let object = Object {
+            shape: sphere,
+            material: Material::default(),
+        };
 
         let ray = Ray::new_from_points(&ORIGIN, &DESTINATION)?;
 
-        let intersect = ray.intersect(&sphere)?;
+        let intersect = ray.intersect(&object)?;
 
         assert!(intersect.is_some());
         if let Some(result_hit) = intersect {
-            assert_eq!(result_hit.object, &sphere);
+            assert_eq!(&(result_hit.object.shape), &sphere);
             assert_eq!(&(result_hit.point_hit), &expected_hit_point);
             assert!(approx_eq!(f64, result_hit.hit_distance, 23.611665975469712));
         }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_first_point_hit_by_ray() -> Result<(), GeometryError> {
+        let sphere_1 = Sphere::new_from_radius(&ORIGIN, 4.);
+        let center_2 = Point::new(-6.055414909, 1.6263876648, 0.);
+        let sphere_2 = Sphere::new_from_radius(&center_2, 3.);
+        let source = Point::new(-10.4900536536, -7.8544458162, 2.3623341028);
+        let ray_destination = Point::new(-2.244677331, 2.7337430702, 0.);
+        let ray = Ray::new_from_points(&source, &ray_destination)?;
+        let object_1 = Object {
+            shape: sphere_1,
+            material: Material::default(),
+        };
+        let object_2 = Object {
+            shape: sphere_2,
+            material: Material::default(),
+        };
+        let mut objects = vec![&object_1, &object_2];
+
+        /* First hit test, should hit sphere 2 */
+
+        if let Some(hit) = ray.first_point_hit_by_ray(objects.clone())? {
+            assert_eq!(&(hit.object.shape), &sphere_2);
+            let expected_point =
+                Point::new(-5.256205273754008, -1.133469952831104, 0.862815095680144);
+            let expected_distance = 8.64946487777813;
+            assert_eq!(hit.point_hit, expected_point);
+            assert!(
+                approx_eq!(f64, hit.hit_distance, expected_distance, ulps = 2),
+                "expected distance {0}, got distance {1}",
+                expected_distance,
+                hit.hit_distance
+            );
+        } else {
+            panic!("No point hit by ray when it should have hit something")
+        }
+
+        /* Modify the sphere 2 to make it so the ray hits the sphere 1 */
+
+        // ? this is not ideal, is there a better way
+
+        let mut sphere_2_modified = sphere_2;
+        sphere_2_modified.radius = 2.;
+        let mut object_2_modified = object_2;
+        object_2_modified.shape = sphere_2_modified;
+
+        objects.remove(1);
+        objects.push(&object_2_modified);
+
+        if let Some(hit) = ray.first_point_hit_by_ray(objects.clone())? {
+            assert_eq!(&(hit.object.shape), &sphere_1);
+            let expected_point =
+                Point::new(-1.72455556675089, 3.40165042437406, -0.149017016715949);
+            let expected_distance = 14.48587393749909;
+            assert_eq!(hit.point_hit, expected_point);
+            assert!(
+                approx_eq!(f64, hit.hit_distance, expected_distance, ulps = 2),
+                "expected distance {0}, got distance {1}",
+                expected_distance,
+                hit.hit_distance
+            );
+        } else {
+            panic!("No point hit by ray when it should have hit something")
+        }
+
+        /* Modify the sphere 1 too so that the ray doesn't hit anything */
+
+        let mut sphere_1_modified = sphere_1;
+        sphere_1_modified.radius = 1.3;
+        let mut object_1_modified = object_1;
+        object_1_modified.shape = sphere_1_modified;
+
+        objects.remove(0);
+        objects.push(&object_1_modified);
+
+        if let Some(hit) = ray.first_point_hit_by_ray(objects.clone())? {
+            panic!("Ray should have hit nothing but got hit info : {:?}", hit);
+        } else {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn test_reflected_ray() -> Result<(), GeometryError> {
+        let source = Point::new(3., 3., 3.);
+        let surface_point = Point::new(0., 3. * 2_f64.sqrt() / 2., 3. * 2_f64.sqrt() / 2.);
+        let sphere_center = Point::new(0., 0., 0.);
+
+        let object = Sphere::new_from_points(&sphere_center, &surface_point);
+
+        let reflected_ray = Ray::reflected_ray(&source, &object, &surface_point)?;
+        let expected_destination = Point::new(-3., 3., 3.);
+        let expected_ray = Ray::new_from_points(&surface_point, &expected_destination)?;
+
+        assert_eq!(reflected_ray, expected_ray);
 
         Ok(())
     }

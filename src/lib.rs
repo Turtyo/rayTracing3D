@@ -1,5 +1,6 @@
 mod error;
 pub mod geometry;
+pub mod object;
 pub mod optic;
 
 // use float_cmp;
