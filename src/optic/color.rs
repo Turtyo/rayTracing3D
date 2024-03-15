@@ -1,15 +1,29 @@
-use std::ops::Mul;
+use std::ops::{Add, Mul};
 
 use crate::{
     error::{ColorError, GeometryError},
     geometry::{ray::Ray, vector::Vector},
 };
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Color {
     r: u8,
     g: u8,
     b: u8,
+}
+
+impl Color {
+    pub fn new(r: u8, g: u8, b: u8) -> Self {
+        Color { r, g, b }
+    }
+
+    pub fn to_diffusion_coefficient(&self) -> Result<DiffusionCoefficient, ColorError> {
+        let Color { r, g, b } = *self;
+        let r = r as f32 / (u8::MAX) as f32;
+        let g = g as f32 / (u8::MAX) as f32;
+        let b = b as f32 / (u8::MAX) as f32;
+        DiffusionCoefficient::new(r, g, b)
+    }
 }
 
 impl Mul<f64> for &Color {
@@ -32,17 +46,48 @@ impl Mul<&Color> for f64 {
     }
 }
 
-static BLACK: Color = Color {
+impl Add for &Color {
+    type Output = Color;
+    fn add(self, rhs: Self) -> Self::Output {
+        let r = self.r.saturating_add(rhs.r);
+        let g = self.g.saturating_add(rhs.g);
+        let b = self.b.saturating_add(rhs.b);
+        Color { r, g, b }
+    }
+}
+
+#[allow(dead_code)]
+pub static BLACK: Color = Color {
     r: u8::MIN,
     g: u8::MIN,
     b: u8::MIN,
 };
-static WHITE: Color = Color {
+#[allow(dead_code)]
+pub static WHITE: Color = Color {
     r: u8::MAX,
     g: u8::MAX,
     b: u8::MAX,
 };
+#[allow(dead_code)]
+pub static RED: Color = Color {
+    r: u8::MAX,
+    g: u8::MIN,
+    b: u8::MIN,
+};
+#[allow(dead_code)]
+pub static GREEN: Color = Color {
+    r: u8::MIN,
+    g: u8::MAX,
+    b: u8::MIN,
+};
+#[allow(dead_code)]
+pub static BLUE: Color = Color {
+    r: u8::MIN,
+    g: u8::MIN,
+    b: u8::MAX,
+};
 
+#[derive(Clone, Copy, Debug)]
 pub struct DiffusionCoefficient {
     dr: f32, // should be between 0 and 1
     dg: f32,
