@@ -5,6 +5,10 @@ use super::point::Point;
 use super::shape::Sphere;
 use super::vector::{UnitVector, Vector};
 
+use rand::SeedableRng;
+use rand_chacha::{self, ChaCha8Rng};
+use rand_distr::{self, DistIter, Distribution, UnitDisc};
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Ray {
     pub origin: Point,
@@ -135,6 +139,30 @@ impl Ray {
                 direction: sym_vector.direction,
             })
         }
+    }
+
+    pub fn cos_weighted_random_ray(
+        point: &Point,
+        normal: &Vector,
+        unit_disc_iter: &mut DistIter<UnitDisc, ChaCha8Rng, [f64; 2]>,
+    ) -> Result<Self, RayTracingError> {
+        let [t, v] = normal.tangent_plane_vectors();
+        // ! rng should be generated as rand_chacha::ChaCha8Rng::seed_from_u64(seed);
+        // let iter_rng: DistIter<UnitDisc, ChaCha8Rng, [f64; 2]> = UnitDisc.sample_iter(rng);
+        // this allows for seeding
+        let [x, y] = match unit_disc_iter.next() {
+            Some(values) => values,
+            _ => return Err(RayTracingError::IteratorDepleted()),
+        };
+
+        // ! this might go wrong
+        let radius_2 = x * x + y * y;
+        let ray_vector = ((x * &t + y * &v)? + (1. - radius_2).sqrt() * normal)?;
+
+        Ok(Ray {
+            origin: *point,
+            direction: ray_vector.direction,
+        })
     }
 }
 

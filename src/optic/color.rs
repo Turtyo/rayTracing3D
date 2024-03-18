@@ -138,7 +138,7 @@ pub fn diffused_color(
         Err(RayTracingError::SourceNotVisibleFromPoint(format!("Source has ray : {0:?} | Surface normal vector is : {1:?} | Their scalar product is {2}", source_ray, surface_normal_vector, normal_ray_scalar_prod)))
     } else {
         let angle = vector_from_surface_to_source.angle_with(&surface_normal_vector);
-        Ok(&(&source_color * &object_diffusion_coefficient) * angle.cos())
+        Ok(&(&source_color * &object_diffusion_coefficient) * angle.cos()) // change this by using a emisphere cos weighted distribution for rays directions
     }
 }
 
