@@ -69,6 +69,31 @@ impl Vector {
         let sp = self.scalar_product(other);
         (sp / (self.norme_vec() * other.norme_vec())).acos()
     }
+
+    fn cross_product(&self, other: &Vector) -> Result<Vector, RayTracingError> {
+        Ok(self.norme_vec()
+            * other.norme_vec()
+            * self.angle_with(&other).sin()
+            * &(self.direction.cross_product(&other.direction)?))
+    }
+
+    pub fn tangent_plane_vectors(&self) -> [Self; 2] {
+        let UnitVector { x, y, .. } = self.direction;
+        if x != 0. || y != 0. {
+            let v1 = Vector::new_from_coordinates(-y, x, 0.)
+                .expect("This vector cannot have a norme of zero since either x or y are not zero");
+            let v2 = self
+                .cross_product(&v1)
+                .expect("This should not have a norme of zero");
+            [v1, v2]
+        } else {
+            let v1 = Vector::new_from_coordinates(1., 0., 0.)
+                .expect("This vector cannot have a norme of 0 as it is (1,0,0)");
+            let v2 = Vector::new_from_coordinates(0., 1., 0.)
+                .expect("This vector cannot have a norme of 0 as it is (0,1,0)");
+            [v1, v2]
+        }
+    }
 }
 
 impl PartialEq for Vector {
@@ -87,6 +112,13 @@ impl Add for &Vector {
         let z = new_vector.norme * new_vector.z() + rhs.norme * rhs.z();
 
         Vector::new_from_coordinates(x, y, z)
+    }
+}
+
+impl Add for Vector {
+    type Output = Result<Vector, RayTracingError>;
+    fn add(self, rhs: Self) -> Self::Output {
+        &self + &rhs
     }
 }
 
@@ -166,6 +198,13 @@ impl UnitVector {
             norme: 1.,
             direction: *self,
         }
+    }
+
+    fn cross_product(&self, other: &UnitVector) -> Result<Self, RayTracingError> {
+        let x = self.y * other.z - self.z * other.y;
+        let y = self.z * other.x - self.x * other.z;
+        let z = self.x * other.y - self.y * other.x;
+        UnitVector::new_from_coordinates(x, y, z)
     }
 }
 
