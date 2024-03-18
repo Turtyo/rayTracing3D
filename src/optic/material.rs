@@ -5,7 +5,7 @@ use super::color::*;
 #[derive(Clone, Copy, Debug)]
 pub struct Material {
     pub emission_color: Color,
-    // ? emission strength
+    emission_strength: f32,
     pub diffusion_coefficients: DiffusionCoefficient,
     reflection_coeff: f32,
 }
@@ -13,14 +13,18 @@ pub struct Material {
 impl Material {
     pub fn new(
         emission_color: Color,
+        emission_strength: f32,
         diffusion_coefficients: DiffusionCoefficient,
         reflection_coeff: f32,
     ) -> Result<Self, RayTracingError> {
         if !(0. ..=1.).contains(&reflection_coeff) {
             Err(RayTracingError::CoefficientOOB(reflection_coeff, 0., 1.))
+        } else if !(0. ..=1.).contains(&emission_strength) {
+            Err(RayTracingError::CoefficientOOB(emission_strength, 0., 1.))
         } else {
             Ok(Material {
                 emission_color,
+                emission_strength,
                 diffusion_coefficients,
                 reflection_coeff,
             })
@@ -42,6 +46,7 @@ impl Default for Material {
         };
         Material {
             emission_color: BLACK,
+            emission_strength: 0.,
             diffusion_coefficients: white_diff,
             reflection_coeff: 0.,
         }
