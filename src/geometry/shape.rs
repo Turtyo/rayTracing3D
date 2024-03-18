@@ -1,7 +1,7 @@
 use super::point::Point;
 use super::ray::Ray;
 use super::vector::Vector;
-use crate::error::GeometryError;
+use crate::error::RayTracingError;
 use crate::object::Object;
 use float_cmp::{self, approx_eq};
 
@@ -49,7 +49,7 @@ impl Sphere {
         &self,
         sphere_point: &Point,
         source: &Point,
-    ) -> Result<bool, GeometryError> {
+    ) -> Result<bool, RayTracingError> {
         /*
         source is above the horizon if the scalar product between the normal to the sphere at the point on the sphere
         and the vector going from the sphere point to the source, is positive
@@ -65,7 +65,7 @@ impl Sphere {
             let point_source_vec = Vector::new_from_points(sphere_point, source)?;
             Ok(normal.scalar_product(&point_source_vec) >= 0.)
         } else {
-            Err(GeometryError::PointNotOnSphere(*sphere_point, *self))
+            Err(RayTracingError::PointNotOnSphere(*sphere_point, *self))
         }
     }
 
@@ -74,11 +74,16 @@ impl Sphere {
         sphere_index: usize,
         sphere_point: &Point,
         source: &Point,
-    ) -> Result<bool, GeometryError> {
+    ) -> Result<bool, RayTracingError> {
         let current_object = objects.get(sphere_index);
         let current_object = match current_object {
             Some(object) => *object,
-            _ => return Err(GeometryError::NoSphereAtIndex(sphere_index, objects.len())),
+            _ => {
+                return Err(RayTracingError::NoSphereAtIndex(
+                    sphere_index,
+                    objects.len(),
+                ))
+            }
         };
 
         if current_object
@@ -89,7 +94,7 @@ impl Sphere {
             if let Some(hit_info) = ray.first_point_hit_by_ray(objects)? {
                 Ok(*sphere_point == hit_info.point_hit)
             } else {
-                Err(GeometryError::RayBetweenPointsDoesNotHitPoint(
+                Err(RayTracingError::RayBetweenPointsDoesNotHitPoint(
                     *source,
                     *sphere_point,
                 ))
@@ -144,7 +149,7 @@ mod tests {
     }
 
     #[test]
-    fn test_source_is_above_horizon() -> Result<(), GeometryError> {
+    fn test_source_is_above_horizon() -> Result<(), RayTracingError> {
         let sphere = make_test_sphere();
 
         let source_not_visible = Point::new(6.64, 24.69, 10.);
@@ -157,7 +162,7 @@ mod tests {
     }
 
     #[test]
-    fn test_source_is_visible_from_sphere() -> Result<(), GeometryError> {
+    fn test_source_is_visible_from_sphere() -> Result<(), RayTracingError> {
         let center_1 = Point::new(0., 6.5, -2.);
         let sphere_1 = Sphere::new_from_radius(&center_1, 4.);
         let center_2 = Point::new(-6.055414909, 1.6263876648, 0.);

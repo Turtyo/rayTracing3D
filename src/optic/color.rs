@@ -1,7 +1,7 @@
 use std::ops::{Add, Mul};
 
 use crate::{
-    error::{ColorError, GeometryError},
+    error::RayTracingError,
     geometry::{ray::Ray, vector::Vector},
 };
 
@@ -17,7 +17,7 @@ impl Color {
         Color { r, g, b }
     }
 
-    pub fn to_diffusion_coefficient(&self) -> Result<DiffusionCoefficient, ColorError> {
+    pub fn to_diffusion_coefficient(&self) -> Result<DiffusionCoefficient, RayTracingError> {
         let Color { r, g, b } = *self;
         let r = r as f32 / (u8::MAX) as f32;
         let g = g as f32 / (u8::MAX) as f32;
@@ -95,9 +95,9 @@ pub struct DiffusionCoefficient {
 }
 
 impl DiffusionCoefficient {
-    pub fn new(dr: f32, dg: f32, db: f32) -> Result<Self, ColorError> {
+    pub fn new(dr: f32, dg: f32, db: f32) -> Result<Self, RayTracingError> {
         if !(0. ..=1.).contains(&dr) || !(0. ..=1.).contains(&dg) || !(0. ..=1.).contains(&db) {
-            Err(ColorError::DiffusionCoefficientOOB(dr, dg, db))
+            Err(RayTracingError::DiffusionCoefficientOOB(dr, dg, db))
         } else {
             Ok(DiffusionCoefficient { dr, dg, db })
         }
@@ -127,7 +127,7 @@ pub fn diffused_color(
     object_diffusion_coefficient: DiffusionCoefficient,
     source_ray: Ray,
     surface_normal_vector: Vector,
-) -> Result<Color, GeometryError> {
+) -> Result<Color, RayTracingError> {
     // ! start by checking if source is visible from the point
     // since we only have spheres for now, this is done by checking the scalar product normal.ray is <= 0
     // source is above the horizon if normal.(ray from surface to source) >= 0, since we have the ray from source to surface it's the opposite
@@ -135,7 +135,7 @@ pub fn diffused_color(
     let normal_ray_scalar_prod =
         surface_normal_vector.scalar_product(&vector_from_surface_to_source);
     if normal_ray_scalar_prod <= 0. {
-        Err(GeometryError::SourceNotVisibleFromPoint(format!("Source has ray : {0:?} | Surface normal vector is : {1:?} | Their scalar product is {2}", source_ray, surface_normal_vector, normal_ray_scalar_prod)))
+        Err(RayTracingError::SourceNotVisibleFromPoint(format!("Source has ray : {0:?} | Surface normal vector is : {1:?} | Their scalar product is {2}", source_ray, surface_normal_vector, normal_ray_scalar_prod)))
     } else {
         let angle = vector_from_surface_to_source.angle_with(&surface_normal_vector);
         Ok(&(&source_color * &object_diffusion_coefficient) * angle.cos())

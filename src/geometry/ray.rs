@@ -1,4 +1,4 @@
-use crate::error::GeometryError;
+use crate::error::RayTracingError;
 use crate::object::Object;
 
 use super::point::Point;
@@ -12,7 +12,7 @@ pub struct Ray {
 }
 
 impl Ray {
-    pub fn new_from_points(origin: &Point, destination: &Point) -> Result<Self, GeometryError> {
+    pub fn new_from_points(origin: &Point, destination: &Point) -> Result<Self, RayTracingError> {
         let dest = UnitVector::new_from_points(origin, destination)?;
         Ok(Ray {
             origin: *origin,
@@ -25,7 +25,10 @@ impl Ray {
         origin + &total_displacement
     }
 
-    pub fn intersect<'a>(&self, object: &'a Object) -> Result<Option<HitInfo<'a>>, GeometryError> {
+    pub fn intersect<'a>(
+        &self,
+        object: &'a Object,
+    ) -> Result<Option<HitInfo<'a>>, RayTracingError> {
         /* A sphere and a ray intersect if and only if the equation:
         d^2 + 2d(u . CO) + CO^2 - r^2 = 0
         has solutions, where:
@@ -80,7 +83,7 @@ impl Ray {
     pub fn first_point_hit_by_ray<'a>(
         &self,
         objects: Vec<&'a Object>, // ? should this be a reference to a vector of objects so we don't need to clone the vector when we modify things in it after
-    ) -> Result<Option<HitInfo<'a>>, GeometryError> {
+    ) -> Result<Option<HitInfo<'a>>, RayTracingError> {
         let mut hit_info_closest_point = HitInfo {
             object: objects[0],
             point_hit: Point {
@@ -111,10 +114,10 @@ impl Ray {
         source: &Point,
         object: &Sphere,
         surface_point: &Point,
-    ) -> Result<Self, GeometryError> {
+    ) -> Result<Self, RayTracingError> {
         if !object.source_is_above_horizon(surface_point, source)? {
             // this already checks if the surface point is on the object
-            Err(GeometryError::SourceNotVisibleFromPoint(format!(
+            Err(RayTracingError::SourceNotVisibleFromPoint(format!(
                 "The object is {0:?} | The object point is {1:?} | The source point is {2:?}",
                 object, surface_point, source
             )))
@@ -172,7 +175,7 @@ mod tests {
     };
 
     #[test]
-    fn test_new_from_points() -> Result<(), GeometryError> {
+    fn test_new_from_points() -> Result<(), RayTracingError> {
         let ray = Ray::new_from_points(&ORIGIN, &DESTINATION)?;
         let direction = UnitVector::new_from_points(&ORIGIN, &DESTINATION)?;
 
@@ -183,7 +186,7 @@ mod tests {
     }
 
     #[test]
-    fn test_point_at_a_distance() -> Result<(), GeometryError> {
+    fn test_point_at_a_distance() -> Result<(), RayTracingError> {
         let ray = Ray::new_from_points(&ORIGIN, &DESTINATION)?;
         let scalar = 7.;
         let result_point = ray.point_at_a_distance(scalar);
@@ -200,7 +203,7 @@ mod tests {
     }
 
     #[test]
-    fn test_intersect_none() -> Result<(), GeometryError> {
+    fn test_intersect_none() -> Result<(), RayTracingError> {
         let center = Point {
             x: 10.,
             y: 10.,
@@ -227,7 +230,7 @@ mod tests {
     }
 
     #[test]
-    fn test_intersect_once() -> Result<(), GeometryError> {
+    fn test_intersect_once() -> Result<(), RayTracingError> {
         let center = Point {
             x: 1.,
             y: 0.,
@@ -259,7 +262,7 @@ mod tests {
     }
 
     #[test]
-    fn test_intersect_twice() -> Result<(), GeometryError> {
+    fn test_intersect_twice() -> Result<(), RayTracingError> {
         let center = Point {
             x: 10.,
             y: -20.,
@@ -293,7 +296,7 @@ mod tests {
     }
 
     #[test]
-    fn test_first_point_hit_by_ray() -> Result<(), GeometryError> {
+    fn test_first_point_hit_by_ray() -> Result<(), RayTracingError> {
         let sphere_1 = Sphere::new_from_radius(&ORIGIN, 4.);
         let center_2 = Point::new(-6.055414909, 1.6263876648, 0.);
         let sphere_2 = Sphere::new_from_radius(&center_2, 3.);
@@ -374,7 +377,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reflected_ray() -> Result<(), GeometryError> {
+    fn test_reflected_ray() -> Result<(), RayTracingError> {
         let source = Point::new(3., 3., 3.);
         let surface_point = Point::new(0., 3. * 2_f64.sqrt() / 2., 3. * 2_f64.sqrt() / 2.);
         let sphere_center = Point::new(0., 0., 0.);

@@ -1,6 +1,6 @@
 use float_cmp::approx_eq;
 
-use crate::error::GeometryError;
+use crate::error::RayTracingError;
 use crate::geometry::point::Point;
 use std::ops::Add;
 use std::ops::Div;
@@ -26,14 +26,14 @@ impl Vector {
         self.direction.z
     }
 
-    pub fn new_from_points(origin: &Point, destination: &Point) -> Result<Self, GeometryError> {
+    pub fn new_from_points(origin: &Point, destination: &Point) -> Result<Self, RayTracingError> {
         {
             let Point { x, y, z } = destination - origin;
             Self::new_from_coordinates(x, y, z)
         }
     }
 
-    pub fn new_from_coordinates(x: f64, y: f64, z: f64) -> Result<Self, GeometryError> {
+    pub fn new_from_coordinates(x: f64, y: f64, z: f64) -> Result<Self, RayTracingError> {
         let norme = Self::norme(x, y, z);
         let direction = Self::normalize(x, y, z, norme)?;
         Ok(Vector { norme, direction })
@@ -52,10 +52,10 @@ impl Vector {
         Self::norme(self.norme * x, self.norme * y, self.norme * z)
     }
 
-    fn normalize(x: f64, y: f64, z: f64, norme: f64) -> Result<UnitVector, GeometryError> {
+    fn normalize(x: f64, y: f64, z: f64, norme: f64) -> Result<UnitVector, RayTracingError> {
         let mut unit_vector = UnitVector { x, y, z };
         if norme == 0. {
-            Err(GeometryError::VectorHasNormeZero)
+            Err(RayTracingError::VectorHasNormeZero)
         } else {
             unit_vector.x /= norme;
             unit_vector.y /= norme;
@@ -78,7 +78,7 @@ impl PartialEq for Vector {
 }
 
 impl Add for &Vector {
-    type Output = Result<Vector, GeometryError>;
+    type Output = Result<Vector, RayTracingError>;
     fn add(self, rhs: Self) -> Self::Output {
         let new_vector = *self;
 
@@ -109,7 +109,7 @@ impl Mul<&Vector> for f64 {
 }
 
 impl Sub for &Vector {
-    type Output = Result<Vector, GeometryError>;
+    type Output = Result<Vector, RayTracingError>;
     fn sub(self, rhs: Self) -> Self::Output {
         let neg_vec = -1. * rhs;
         // ? is there a way to oneline this with a closure maybe
@@ -149,14 +149,14 @@ impl UnitVector {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
 
-    pub fn new_from_points(origin: &Point, destination: &Point) -> Result<Self, GeometryError> {
+    pub fn new_from_points(origin: &Point, destination: &Point) -> Result<Self, RayTracingError> {
         {
             let Point { x, y, z } = destination - origin;
             Self::new_from_coordinates(x, y, z)
         }
     }
 
-    pub fn new_from_coordinates(x: f64, y: f64, z: f64) -> Result<Self, GeometryError> {
+    pub fn new_from_coordinates(x: f64, y: f64, z: f64) -> Result<Self, RayTracingError> {
         let norme = Vector::norme(x, y, z);
         Vector::normalize(x, y, z, norme)
     }
@@ -196,7 +196,7 @@ impl Mul<&UnitVector> for f64 {
 }
 
 impl Add<&Vector> for &UnitVector {
-    type Output = Result<Vector, GeometryError>;
+    type Output = Result<Vector, RayTracingError>;
     fn add(self, rhs: &Vector) -> Self::Output {
         // convert the unit vector to a Vector
         &self.to_vector() + rhs
@@ -212,7 +212,7 @@ mod tests {
     use float_cmp::approx_eq;
 
     #[test]
-    fn test_new_vector_from_coordinates() -> Result<(), GeometryError> {
+    fn test_new_vector_from_coordinates() -> Result<(), RayTracingError> {
         let vector = Vector::new_from_coordinates(1., 1., 1.)?;
 
         let norme = f64::sqrt(3.);
@@ -226,7 +226,7 @@ mod tests {
     }
 
     #[test]
-    fn test_vector_new_from_points() -> Result<(), GeometryError> {
+    fn test_vector_new_from_points() -> Result<(), RayTracingError> {
         let origin = Point {
             x: 0.,
             y: 0.,
@@ -253,7 +253,7 @@ mod tests {
     }
 
     #[test]
-    fn test_scalar_product() -> Result<(), GeometryError> {
+    fn test_scalar_product() -> Result<(), RayTracingError> {
         let first_vector = Vector::new_from_coordinates(-1.5, 1., 45.)?;
         let second_vector = Vector::new_from_coordinates(0.458, -78., 12.)?;
         let expected_value = -1.5 * 0.458 - 78. + 45. * 12.;
@@ -282,7 +282,7 @@ mod tests {
     }
 
     #[test]
-    fn test_norme_vec() -> Result<(), GeometryError> {
+    fn test_norme_vec() -> Result<(), RayTracingError> {
         let vector = Vector::new_from_coordinates(0.458, -78., 12.)?;
         let expected_value = f64::sqrt(0.458 * 0.458 + 78. * 78. + 12. * 12.);
 
@@ -296,7 +296,7 @@ mod tests {
     }
 
     #[test]
-    fn test_angle_with() -> Result<(), GeometryError> {
+    fn test_angle_with() -> Result<(), RayTracingError> {
         let first_vector = Vector::new_from_coordinates(0., 12.5, 0.)?;
         let a = f64::sqrt(2.) / 2.;
         let second_vector = Vector::new_from_coordinates(a, a, 0.)?;

@@ -69,7 +69,7 @@ impl Add<&Point> for &Vector {
 
 #[cfg(test)]
 mod tests {
-    use crate::error::GeometryError;
+    use crate::error::RayTracingError;
 
     use super::*;
 
@@ -108,7 +108,7 @@ mod tests {
     }
 
     #[test]
-    fn test_add_vector() -> Result<(), GeometryError> {
+    fn test_add_vector() -> Result<(), RayTracingError> {
         let vector = Vector::new_from_coordinates(48.7, -154., 42.69)?;
 
         let expected_point = Point {

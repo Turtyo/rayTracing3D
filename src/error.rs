@@ -2,7 +2,7 @@ use crate::geometry::{point::Point, shape::Sphere};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum GeometryError {
+pub enum RayTracingError {
     #[error("Can't create vector of norme 1 from vector of norme 0")]
     UnitVectorFromZeroVector(String),
     #[error("The point {0:?} is not a point of the sphere {1:?}")]
@@ -15,12 +15,10 @@ pub enum GeometryError {
     SourceNotVisibleFromPoint(String),
     #[error("Cannot create a unit vector or vector of norme 0")]
     VectorHasNormeZero,
-}
-
-#[derive(Error, Debug)]
-pub enum ColorError {
     #[error("Diffusion value should be a float coefficient between 0 and 1, got : dr = {0} | dg = {1} | db = {2}")]
     DiffusionCoefficientOOB(f32, f32, f32),
-    #[error("Reflection value should be a float coefficient between 0 and 1, got {0}")]
-    ReflectionCoefficientOOB(f32),
+    #[error("Reflection value should be a float coefficient between {1} and {2}, got {0}")]
+    CoefficientOOB(f32, f32, f32),
+    #[error("The iterator doesn't have values anymore")]
+    IteratorDepleted(),
 }

@@ -1,4 +1,4 @@
-use crate::error::ColorError;
+use crate::error::RayTracingError;
 
 use super::color::*;
 
@@ -15,9 +15,9 @@ impl Material {
         emission_color: Color,
         diffusion_coefficients: DiffusionCoefficient,
         reflection_coeff: f32,
-    ) -> Result<Self, ColorError> {
+    ) -> Result<Self, RayTracingError> {
         if !(0. ..=1.).contains(&reflection_coeff) {
-            Err(ColorError::ReflectionCoefficientOOB(reflection_coeff))
+            Err(RayTracingError::CoefficientOOB(reflection_coeff, 0., 1.))
         } else {
             Ok(Material {
                 emission_color,
