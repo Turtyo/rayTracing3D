@@ -117,19 +117,19 @@ mod tests {
 
     use super::*;
 
-    static CENTER: Point = Point {
+    const CENTER: Point = Point {
         x: 0.,
         y: 0.,
         z: 0.,
     };
-    static OUTER: Point = Point {
+    const OUTER: Point = Point {
         x: 15.,
         y: 12.,
         z: -2.3,
     };
 
     fn make_test_sphere() -> Sphere {
-        // can't make sphere static because new_from_points is not a static function
+        // can't make sphere const because new_from_points is not a const function
         Sphere::new_from_points(&CENTER, &OUTER)
     }
 

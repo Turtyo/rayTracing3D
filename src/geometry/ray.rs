@@ -152,23 +152,23 @@ mod tests {
     use super::*;
     use float_cmp::approx_eq;
 
-    static ORIGIN: Point = Point {
+    const ORIGIN: Point = Point {
         x: 0.,
         y: 6.5,
         z: -2.,
     };
-    static DESTINATION: Point = Point {
+    const DESTINATION: Point = Point {
         x: 45.,
         y: -89.,
         z: -0.1,
     };
 
-    static ORIGIN_2: Point = Point {
+    const ORIGIN_2: Point = Point {
         x: 0.,
         y: 0.,
         z: 0.,
     };
-    static DESTINATION_2: Point = Point {
+    const DESTINATION_2: Point = Point {
         x: 1.,
         y: 1.,
         z: 1.,

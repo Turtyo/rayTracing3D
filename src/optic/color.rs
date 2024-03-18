@@ -57,31 +57,31 @@ impl Add for &Color {
 }
 
 #[allow(dead_code)]
-pub static BLACK: Color = Color {
+pub const BLACK: Color = Color {
     r: u8::MIN,
     g: u8::MIN,
     b: u8::MIN,
 };
 #[allow(dead_code)]
-pub static WHITE: Color = Color {
+pub const WHITE: Color = Color {
     r: u8::MAX,
     g: u8::MAX,
     b: u8::MAX,
 };
 #[allow(dead_code)]
-pub static RED: Color = Color {
+pub const RED: Color = Color {
     r: u8::MAX,
     g: u8::MIN,
     b: u8::MIN,
 };
 #[allow(dead_code)]
-pub static GREEN: Color = Color {
+pub const GREEN: Color = Color {
     r: u8::MIN,
     g: u8::MAX,
     b: u8::MIN,
 };
 #[allow(dead_code)]
-pub static BLUE: Color = Color {
+pub const BLUE: Color = Color {
     r: u8::MIN,
     g: u8::MIN,
     b: u8::MAX,

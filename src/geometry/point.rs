@@ -73,12 +73,12 @@ mod tests {
 
     use super::*;
 
-    static POINT_1: Point = Point {
+    const POINT_1: Point = Point {
         x: 0.5,
         y: 7.,
         z: -2.,
     };
-    static POINT_2: Point = Point {
+    const POINT_2: Point = Point {
         x: -10.,
         y: 0.,
         z: -2.,
