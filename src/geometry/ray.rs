@@ -5,9 +5,8 @@ use super::point::Point;
 use super::shape::Sphere;
 use super::vector::{UnitVector, Vector};
 
-use rand::SeedableRng;
 use rand_chacha::{self, ChaCha8Rng};
-use rand_distr::{self, DistIter, Distribution, UnitDisc};
+use rand_distr::{self, DistIter, UnitDisc};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Ray {
@@ -143,9 +142,10 @@ impl Ray {
 
     pub fn cos_weighted_random_ray(
         point: &Point,
-        normal: &Vector,
+        normal: &UnitVector,
         unit_disc_iter: &mut DistIter<UnitDisc, ChaCha8Rng, [f64; 2]>,
     ) -> Result<Self, RayTracingError> {
+        // based on https://www.pbr-book.org/3ed-2018/Monte_Carlo_Integration/2D_Sampling_with_Multidimensional_Transformations
         let [t, v] = normal.tangent_plane_vectors();
         // ! rng should be generated as rand_chacha::ChaCha8Rng::seed_from_u64(seed);
         // let iter_rng: DistIter<UnitDisc, ChaCha8Rng, [f64; 2]> = UnitDisc.sample_iter(rng);
@@ -175,10 +175,15 @@ pub struct HitInfo<'a> {
 
 #[cfg(test)]
 mod tests {
+
     use crate::optic::material::Material;
 
     use super::*;
     use float_cmp::approx_eq;
+
+    use rand::SeedableRng;
+    use rand_distr::{UnitSphere, Distribution};
+    use plotters::prelude::*;
 
     const ORIGIN: Point = Point {
         x: 0.,
@@ -420,4 +425,208 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    #[ignore]
+    fn draw_uniform_weighted_random_ray() -> Result<(), Box<dyn std::error::Error>> {
+        const OUT_FILE_NAME: &str = "plot_output/3d-plot2.gif";
+        fn pdf(x: f64, y: f64) -> f64 {
+            const SDX: f64 = 0.1;
+            const SDY: f64 = 0.1;
+            const A: f64 = 5.0;
+            let x = x / 10.0;
+            let y = y / 10.0;
+            A * (-x * x / 2.0 / SDX / SDX - y * y / 2.0 / SDY / SDY).exp()
+        }
+
+        let root = BitMapBackend::gif(OUT_FILE_NAME, (600, 400), 100)?.into_drawing_area();
+        let total_number = 157;
+        for pitch in 0..total_number {
+            println!("frame : {}/{}", pitch+1, total_number);
+            root.fill(&WHITE)?;
+
+            let mut chart = ChartBuilder::on(&root)
+                .caption("2D Gaussian PDF", ("sans-serif", 20))
+                .build_cartesian_3d(-3.0..3.0, 0.0..6.0, -3.0..3.0)?;
+            chart.with_projection(|mut p| {
+                p.pitch = 1.57 - (1.57 - pitch as f64 / 50.0).abs();
+                p.scale = 0.7;
+                p.into_matrix() // build the projection matrix
+            });
+
+            chart
+                .configure_axes()
+                .light_grid_style(BLACK.mix(0.15))
+                .max_light_lines(3)
+                .draw()?;
+
+            chart.draw_series(
+                SurfaceSeries::xoz(
+                    (-15..=15).map(|x| x as f64 / 5.0),
+                    (-15..=15).map(|x| x as f64 / 5.0),
+                    pdf,
+                )
+                .style_func(&|&v| (VulcanoHSL::get_color(v / 5.0)).into()),
+            )?;
+
+            root.present()?;
+        }
+
+        // To avoid the IO failure being ignored silently, we manually call the present function
+        root.present().expect("Unable to write result to file, please make sure 'plotters-doc-data' dir exists under current dir");
+        println!("Result has been saved to {}", OUT_FILE_NAME);
+        
+        Ok(())
+    } 
+
+    // #[test]
+    // fn test_uniform_weighted_random_ray() -> Result<(), RayTracingError> {
+    //     // * We use the One-sample Kolmogorov–Smirnov statistic, see https://en.wikipedia.org/wiki/Kolmogorov-Smirnov_test
+    //     // * reference function is cos x between 0 and pi/2 (integral over this interval is indeed 1)
+    //     let seed = 2;
+    //     let sample_number = 1e6 as u64; //cast is exact until 1e16
+    //     let epsilon = 1e-2;
+    //     let number_of_intervals = (std::f64::consts::FRAC_PI_2 / epsilon).ceil() as usize;
+    //     // to compensate the normalization of all the ring surfaces later
+    //     let egamma = 0.577215664901532860606512090082402431; // The Euler-Mascheroni constant
+    //     let normalized_sample_number = (sample_number as f64) * epsilon * epsilon * (digamma(number_of_intervals as f64 + 2.) + egamma - 1.);
+    //     println!("number of intervals : {}", number_of_intervals);
+    //     let rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
+    //     let mut iter_rng: DistIter<UnitSphere, ChaCha8Rng, [f64; 3]> = UnitSphere.sample_iter(rng);
+    //     let mut list_of_ray_distribution: Vec<u64> = vec![0; number_of_intervals];
+    //     let normal_vector = UnitVector::new_from_coordinates(0.,0.,1.)?;
+    //     let origin_point = Point::new(0.,0.,0.);
+    //     for _ in 1..=sample_number {
+    //         let [x,y,z] = match iter_rng.next(){
+    //             Some(arr) => arr,
+    //             _ => panic!("Iterator over the sphere surface is over when is shouldn't be\n"),
+    //         };
+    //         let destination = Point::new(x, y, z);
+    //         // println!("sampled point: {:?}", &destination);
+    //         let ray = Ray::new_from_points(&origin_point, &destination)?;
+    //         let angle = match normal_vector.angle_with(&ray.direction) {
+    //             x if (0. ..=std::f64::consts::FRAC_PI_2).contains(&x)=> x,
+    //             x if (std::f64::consts::FRAC_PI_2 ..=std::f64::consts::PI).contains(&x)=> std::f64::consts::PI - x,
+    //             y => panic!("The angle {} is not in the range 0 ~ pi\n", y),
+    //         };
+    //         let eps_index_of_angle = (angle / epsilon).floor() as usize;
+    //         list_of_ray_distribution[eps_index_of_angle] += 1;
+    //     }
+    //     let mut list_of_probabilities = list_of_ray_distribution
+    //         .into_iter()
+    //         .map(|x| (x as f64) / (normalized_sample_number as f64));
+    //     println!("list of probabilities : {:?}", list_of_probabilities.clone().collect::<Vec<f64>>());
+    //     println!("total sum : {}", list_of_probabilities.clone().sum::<f64>());
+    //     let mut empirical_distribution = vec![0.; number_of_intervals];
+    //     let mut previous_sum = 0.;
+    //     let mut list_of_indexes = vec![0; number_of_intervals];
+    //     for i in 0..number_of_intervals {
+    //         let current_val = match list_of_probabilities.next(){
+    //             Some(val) => val,
+    //             _ => panic!("Iterator is depleted at index {0} but we don't have all the values in the empirical distribution : {1:?}", i, empirical_distribution),
+    //         };
+    //         let surface_normalization_ratio = 1. + (i as f64)/2.;
+    //         previous_sum += current_val/(surface_normalization_ratio);
+    //         empirical_distribution[i] = previous_sum;
+    //         list_of_indexes[i] = i;
+    //     }
+
+    //     previous_sum = 0.;
+    //     let expected_distribution = list_of_indexes.into_iter().map(|x| {
+    //         let val = x as f64 * epsilon;
+    //         previous_sum += val;
+    //         previous_sum
+    //     });
+
+    //     let mut max_ks_distance = 0.;
+
+    //     let list_of_ks_distance: Vec<f64> = empirical_distribution
+    //         .into_iter()
+    //         .zip(expected_distribution)
+    //         .map(|double| {
+    //             let val = (double.0 - double.1).abs();
+    //             if val >= max_ks_distance {
+    //                 max_ks_distance = val;
+    //             }
+    //             val
+    //         })
+    //         .collect();
+
+    //     assert!(
+    //         max_ks_distance < 0.1,
+    //         "list of ks distance: {:?}",
+    //         list_of_ks_distance
+    //     );
+
+    //     Ok(())
+    // }
+
+    // #[test]
+    // fn test_cos_weighted_random_ray() -> Result<(), RayTracingError> {
+    //     // * We use the One-sample Kolmogorov–Smirnov statistic, see https://en.wikipedia.org/wiki/Kolmogorov-Smirnov_test
+    //     // * reference function is cos x between 0 and pi/2 (integral over this interval is indeed 1)
+    //     let seed = 2;
+    //     let sample_number = 1e6 as u64; //cast is exact until 1e16
+    //     let epsilon = 1e-2;
+    //     let number_of_intervals = (std::f64::consts::FRAC_PI_2 / epsilon).ceil() as usize;
+    //     println!("number of intervals : {}", number_of_intervals);
+    //     let rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
+    //     let mut iter_rng: DistIter<UnitDisc, ChaCha8Rng, [f64; 2]> = UnitDisc.sample_iter(rng);
+    //     let mut list_of_ray_distribution: Vec<u64> = vec![0; number_of_intervals];
+    //     let normal_vector = UnitVector::new_from_coordinates(0.7, 12., -2.)?;
+    //     let origin_point = Point::new(-1., 0., 1.2);
+    //     for _ in 1..=sample_number {
+    //         let ray = Ray::cos_weighted_random_ray(&origin_point, &normal_vector, &mut iter_rng)?;
+    //         let angle = normal_vector.angle_with(&ray.direction).abs();
+    //         assert!(angle <= std::f64::consts::FRAC_PI_2 && angle >= 0.);
+    //         let eps_index_of_angle = (angle / epsilon).floor() as usize;
+    //         list_of_ray_distribution[eps_index_of_angle] += 1;
+    //     }
+    //     let mut list_of_probabilities = list_of_ray_distribution
+    //         .into_iter()
+    //         .map(|x| (x as f64) / (sample_number as f64));
+    //     println!("list of probabilities : {:?}", list_of_probabilities.clone().collect::<Vec<f64>>());
+    //     println!("total sum : {}", list_of_probabilities.clone().sum::<f64>());
+    //     let mut empirical_distribution = vec![0.; number_of_intervals];
+    //     let mut previous_sum = 0.;
+    //     let mut list_of_indexes = vec![0; number_of_intervals];
+    //     for i in 0..number_of_intervals {
+    //         let current_val = match list_of_probabilities.next(){
+    //             Some(val) => val,
+    //             _ => panic!("Iterator is depleted at index {0} but we don't have all the values in the empirical distribution : {1:?}", i, empirical_distribution),
+    //         };
+    //         previous_sum += current_val;
+    //         empirical_distribution[i] = previous_sum;
+    //         list_of_indexes[i] = i;
+    //     }
+
+    //     previous_sum = 0.;
+    //     let expected_distribution = list_of_indexes.into_iter().map(|x| {
+    //         let val = (x as f64 * epsilon).cos();
+    //         previous_sum += val;
+    //         previous_sum
+    //     });
+
+    //     let mut max_ks_distance = 0.;
+
+    //     let list_of_ks_distance: Vec<f64> = empirical_distribution
+    //         .into_iter()
+    //         .zip(expected_distribution)
+    //         .map(|double| {
+    //             let val = (double.0 - double.1).abs();
+    //             if val >= max_ks_distance {
+    //                 max_ks_distance = val;
+    //             }
+    //             val
+    //         })
+    //         .collect();
+
+    //     assert!(
+    //         max_ks_distance < 0.1,
+    //         "list of ks distance: {:?}",
+    //         list_of_ks_distance
+    //     );
+
+    //     Ok(())
+    // }
 }
