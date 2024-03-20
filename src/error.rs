@@ -15,10 +15,12 @@ pub enum RayTracingError {
     SourceNotVisibleFromPoint(String),
     #[error("Cannot create a unit vector or vector of norme 0")]
     VectorHasNormeZero,
+    #[error("Colors values should be a float coefficient between 0 and 1, got : r = {0} | g = {1} | b = {2}")]
+    ColorCoefficientOOB(f32, f32, f32),
     #[error("Diffusion value should be a float coefficient between 0 and 1, got : dr = {0} | dg = {1} | db = {2}")]
     DiffusionCoefficientOOB(f32, f32, f32),
-    #[error("Reflection value should be a float coefficient between {1} and {2}, got {0}")]
-    CoefficientOOB(f32, f32, f32),
+    #[error("Value should be a float coefficient between {1} and {2}, got {0}")]
+    CoefficientOOB(f64, f64, f64),
     #[error("The iterator doesn't have values anymore")]
     IteratorDepleted(),
 }
