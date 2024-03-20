@@ -22,11 +22,12 @@ impl Ray {
             direction: dest,
         })
     }
-    pub fn point_at_a_distance(&self, scalar: f64) -> Point {
-        let Ray { origin, direction } = self;
-        let total_displacement = scalar * direction;
-        origin + &total_displacement
-    }
+    // ! deprecated (not used)
+    // pub fn point_at_a_distance(&self, scalar: f64) -> Point {
+    //     let Ray { origin, direction } = self;
+    //     let total_displacement = scalar * direction;
+    //     origin + &total_displacement
+    // }
 
     pub fn intersect<'a>(
         &self,
@@ -185,9 +186,9 @@ mod tests {
     use super::*;
     use float_cmp::approx_eq;
 
-    use rand::SeedableRng;
-    use rand_distr::{UnitSphere, Distribution};
     use plotters::prelude::*;
+    use rand::SeedableRng;
+    use rand_distr::{Distribution, UnitSphere};
 
     const ORIGIN: Point = Point {
         x: 0.,
@@ -222,22 +223,22 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn test_point_at_a_distance() -> Result<(), RayTracingError> {
-        let ray = Ray::new_from_points(&ORIGIN, &DESTINATION)?;
-        let scalar = 7.;
-        let result_point = ray.point_at_a_distance(scalar);
+    // #[test]
+    // fn test_point_at_a_distance() -> Result<(), RayTracingError> {
+    //     let ray = Ray::new_from_points(&ORIGIN, &DESTINATION)?;
+    //     let scalar = 7.;
+    //     let result_point = ray.point_at_a_distance(scalar);
 
-        let expected_point = Point {
-            x: ORIGIN.x + ray.direction.x() * scalar,
-            y: ORIGIN.y + ray.direction.y() * scalar,
-            z: ORIGIN.z + ray.direction.z() * scalar,
-        };
+    //     let expected_point = Point {
+    //         x: ORIGIN.x + ray.direction.x() * scalar,
+    //         y: ORIGIN.y + ray.direction.y() * scalar,
+    //         z: ORIGIN.z + ray.direction.z() * scalar,
+    //     };
 
-        assert_eq!(result_point, expected_point);
+    //     assert_eq!(result_point, expected_point);
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     #[test]
     fn test_intersect_none() -> Result<(), RayTracingError> {
@@ -352,7 +353,7 @@ mod tests {
 
         /* First hit test, should hit sphere 2 */
 
-        if let Some(hit) = ray.first_point_hit_by_ray(objects.clone())? {
+        if let Some(hit) = ray.first_point_hit_by_ray(&objects)? {
             assert_eq!(&(hit.object.shape), &sphere_2);
             let expected_point =
                 Point::new(-5.256205273754008, -1.133469952831104, 0.862815095680144);
@@ -380,7 +381,7 @@ mod tests {
         objects.remove(1);
         objects.push(&object_2_modified);
 
-        if let Some(hit) = ray.first_point_hit_by_ray(objects.clone())? {
+        if let Some(hit) = ray.first_point_hit_by_ray(&objects)? {
             assert_eq!(&(hit.object.shape), &sphere_1);
             let expected_point =
                 Point::new(-1.72455556675089, 3.40165042437406, -0.149017016715949);
@@ -406,7 +407,7 @@ mod tests {
         objects.remove(0);
         objects.push(&object_1_modified);
 
-        if let Some(hit) = ray.first_point_hit_by_ray(objects.clone())? {
+        if let Some(hit) = ray.first_point_hit_by_ray(&objects)? {
             panic!("Ray should have hit nothing but got hit info : {:?}", hit);
         } else {
             Ok(())
