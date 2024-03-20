@@ -433,27 +433,40 @@ mod tests {
     #[test]
     #[ignore]
     fn draw_uniform_weighted_random_ray() -> Result<(), Box<dyn std::error::Error>> {
-        const OUT_FILE_NAME: &str = "plot_output/3d-plot2.gif";
-        fn pdf(x: f64, y: f64) -> f64 {
-            const SDX: f64 = 0.1;
-            const SDY: f64 = 0.1;
-            const A: f64 = 5.0;
-            let x = x / 10.0;
-            let y = y / 10.0;
-            A * (-x * x / 2.0 / SDX / SDX - y * y / 2.0 / SDY / SDY).exp()
-        }
+        const OUT_FILE_NAME: &str = "plot_output/uniform_weighted_random_ray.gif";
+        let factor = 2;
+        let eps = 0.01 / (factor as f64);
+        let total_frame_number = 157;
+
+        let seed = 2;
+        let rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
+        let mut iter_rng: DistIter<UnitSphere, ChaCha8Rng, [f64; 3]> = UnitSphere.sample_iter(rng);
+
+        let random_points = {
+            let point_number = 2000 * factor;
+            let mut temp_vec = vec![(0., 0., 0.); point_number];
+            for i in 0..point_number {
+                let [x, y, z] = match iter_rng.next() {
+                    Some(arr) => arr,
+                    _ => panic!("Iterator over the sphere surface is over when is shouldn't be\n"),
+                };
+                temp_vec[i] = (x, y.abs(), z);
+            }
+            temp_vec
+        };
 
         let root = BitMapBackend::gif(OUT_FILE_NAME, (600, 400), 100)?.into_drawing_area();
-        let total_number = 157;
-        for pitch in 0..total_number {
-            println!("frame : {}/{}", pitch+1, total_number);
+
+        for pitch in 0..total_frame_number {
+            println!("frame : {}/{}", pitch + 1, total_frame_number);
             root.fill(&WHITE)?;
 
             let mut chart = ChartBuilder::on(&root)
                 .caption("2D Gaussian PDF", ("sans-serif", 20))
-                .build_cartesian_3d(-3.0..3.0, 0.0..6.0, -3.0..3.0)?;
+                .build_cartesian_3d(-1.0..1.0, -1.0..1.0, -1.0..1.0)?;
             chart.with_projection(|mut p| {
                 p.pitch = 1.57 - (1.57 - pitch as f64 / 50.0).abs();
+                p.yaw = 1.57 - (1.57 - pitch as f64 / 50.0).abs();
                 p.scale = 0.7;
                 p.into_matrix() // build the projection matrix
             });
@@ -464,14 +477,16 @@ mod tests {
                 .max_light_lines(3)
                 .draw()?;
 
-            chart.draw_series(
-                SurfaceSeries::xoz(
-                    (-15..=15).map(|x| x as f64 / 5.0),
-                    (-15..=15).map(|x| x as f64 / 5.0),
-                    pdf,
+            chart.draw_series(random_points.iter().map(|(x, y, z)| {
+                Cubiod::new(
+                    [
+                        (*x - eps, *y - eps, *z - eps),
+                        (*x + eps, *y + eps, *z + eps),
+                    ],
+                    BLUE.mix(0.1),
+                    BLUE.mix(0.1),
                 )
-                .style_func(&|&v| (VulcanoHSL::get_color(v / 5.0)).into()),
-            )?;
+            }))?;
 
             root.present()?;
         }
@@ -479,9 +494,77 @@ mod tests {
         // To avoid the IO failure being ignored silently, we manually call the present function
         root.present().expect("Unable to write result to file, please make sure 'plotters-doc-data' dir exists under current dir");
         println!("Result has been saved to {}", OUT_FILE_NAME);
-        
+
         Ok(())
-    } 
+    }
+
+    #[test]
+    #[ignore]
+    fn draw_cos_weighted_random_ray() -> Result<(), Box<dyn std::error::Error>> {
+        const OUT_FILE_NAME: &str = "plot_output/cos_weighted_random_ray.gif";
+        let factor = 2;
+        let eps = 0.01 / (factor as f64);
+        let total_frame_number = 157;
+
+        let seed = 2;
+        let rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
+        let mut iter_rng: DistIter<UnitDisc, ChaCha8Rng, [f64; 2]> = UnitDisc.sample_iter(rng);
+
+        let random_points = {
+            let normal_vector = UnitVector::new_from_coordinates(0., 11., 0.)?;
+            let origin_point = Point::new(-1., 0., 1.2);
+            let point_number = 2000 * factor;
+            let mut temp_vec = vec![(0., 0., 0.); point_number];
+            for i in 0..point_number {
+                let ray =
+                    Ray::cos_weighted_random_ray(&origin_point, &normal_vector, &mut iter_rng)?;
+                temp_vec[i] = (ray.direction.x(), ray.direction.y(), ray.direction.z());
+            }
+            temp_vec
+        };
+
+        let root = BitMapBackend::gif(OUT_FILE_NAME, (600, 400), 100)?.into_drawing_area();
+
+        for pitch in 0..total_frame_number {
+            println!("frame : {}/{}", pitch + 1, total_frame_number);
+            root.fill(&WHITE)?;
+
+            let mut chart = ChartBuilder::on(&root)
+                .caption("2D Gaussian PDF", ("sans-serif", 20))
+                .build_cartesian_3d(-1.0..1.0, -1.0..1.0, -1.0..1.0)?;
+            chart.with_projection(|mut p| {
+                p.pitch = 1.57 - (1.57 - pitch as f64 / 50.0).abs();
+                p.yaw = 1.57 - (1.57 - pitch as f64 / 50.0).abs();
+                p.scale = 0.7;
+                p.into_matrix() // build the projection matrix
+            });
+
+            chart
+                .configure_axes()
+                .light_grid_style(BLACK.mix(0.15))
+                .max_light_lines(3)
+                .draw()?;
+
+            chart.draw_series(random_points.iter().map(|(x, y, z)| {
+                Cubiod::new(
+                    [
+                        (*x - eps, *y - eps, *z - eps),
+                        (*x + eps, *y + eps, *z + eps),
+                    ],
+                    BLUE.mix(0.1),
+                    BLUE.mix(0.1),
+                )
+            }))?;
+
+            root.present()?;
+        }
+
+        // To avoid the IO failure being ignored silently, we manually call the present function
+        root.present().expect("Unable to write result to file, please make sure 'plotters-doc-data' dir exists under current dir");
+        println!("Result has been saved to {}", OUT_FILE_NAME);
+
+        Ok(())
+    }
 
     // #[test]
     // fn test_uniform_weighted_random_ray() -> Result<(), RayTracingError> {
