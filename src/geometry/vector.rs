@@ -73,7 +73,7 @@ impl Vector {
     fn cross_product(&self, other: &Vector) -> Result<Vector, RayTracingError> {
         Ok(self.norme_vec()
             * other.norme_vec()
-            * self.angle_with(&other).sin()
+            * self.angle_with(other).sin()
             * &(self.direction.cross_product(&other.direction)?))
     }
 }
