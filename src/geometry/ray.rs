@@ -85,7 +85,7 @@ impl Ray {
 
     pub fn first_point_hit_by_ray<'a>(
         &self,
-        objects: Vec<&'a Object>, // ? should this be a reference to a vector of objects so we don't need to clone the vector when we modify things in it after
+        objects: &Vec<&'a Object>, 
     ) -> Result<Option<HitInfo<'a>>, RayTracingError> {
         let mut hit_info_closest_point = HitInfo {
             object: objects[0],

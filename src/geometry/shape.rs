@@ -70,7 +70,7 @@ impl Sphere {
     }
 
     pub fn source_is_visible_from_sphere_point(
-        objects: Vec<&Object>,
+        objects: &Vec<&Object>,
         sphere_index: usize,
         sphere_point: &Point,
         source: &Point,
@@ -183,19 +183,19 @@ mod tests {
         let sphere_1_point_1 = Point::new(-1.72455556675089, 3.40165042437406, -0.149017016715949); // should not view source
 
         assert!(Sphere::source_is_visible_from_sphere_point(
-            objects.clone(),
+            &objects,
             1,
             &sphere_2_point_1,
             &source
         )?);
         assert!(!Sphere::source_is_visible_from_sphere_point(
-            objects.clone(),
+            &objects,
             1,
             &sphere_2_point_2,
             &source
         )?);
         assert!(!Sphere::source_is_visible_from_sphere_point(
-            objects.clone(),
+            &objects,
             0,
             &sphere_1_point_1,
             &source
@@ -211,7 +211,7 @@ mod tests {
         // sphere 1 point 1 should now view the source
 
         assert!(Sphere::source_is_visible_from_sphere_point(
-            objects.clone(),
+            &objects,
             0,
             &sphere_1_point_1,
             &source
