@@ -75,9 +75,11 @@ impl Ray {
                 }
             }
             let point_hit = &self.origin + &(hit_distance * &self.direction);
+            let normal = UnitVector::new_from_points(&(object.shape.center), &point_hit)?;
             Ok(Some(HitInfo {
                 object,
                 point_hit,
+                normal,
                 hit_distance,
             }))
         }
@@ -89,6 +91,7 @@ impl Ray {
     ) -> Result<Option<HitInfo<'a>>, RayTracingError> {
         let mut hit_info_closest_point = HitInfo {
             object: objects[0],
+            normal: UnitVector::new_from_coordinates(1., 0., 0.)?,
             point_hit: Point {
                 x: 0.,
                 y: 0.,
@@ -170,6 +173,7 @@ impl Ray {
 pub struct HitInfo<'a> {
     pub object: &'a Object,
     pub point_hit: Point,
+    pub normal: UnitVector,
     pub hit_distance: f64,
 }
 
