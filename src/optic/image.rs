@@ -170,9 +170,9 @@ impl Grid {
     }
 
     pub fn export_image(self, path: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let mut image = RgbImage::new(GRID_WIDTH as u32, GRID_HEIGHT as u32);
-        for (width, height, pixel) in image.enumerate_pixels_mut() {
-            let (r, g, b) = self.colors[width as usize][height as usize].into_rgb()?;
+        let mut image = RgbImage::new(self.width as u32, self.height as u32);
+        for (width_index, height_index, pixel) in image.enumerate_pixels_mut() {
+            let (r, g, b) = self.colors[height_index as usize][width_index as usize].into_rgb()?;
             *pixel = Rgb([r, g, b])
         }
 
