@@ -100,10 +100,10 @@ impl Grid {
             pixel_height_index,
             number_of_points_per_pixel,
         )?;
-        let mut ray_color = color::WHITE;
         let mut total_ray_light = color::BLACK;
         let ray_has_hit = false;
         for vector in vector_eye_pixel {
+            let mut ray_color = color::WHITE;
             let mut ray_light = color::BLACK;
             // make the vector bounce around the scene on objects
             // we get a color of we hit a light source, or else we get the background color
