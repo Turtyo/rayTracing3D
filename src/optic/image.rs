@@ -106,7 +106,7 @@ impl Grid {
             let mut ray_color = color::WHITE;
             let mut ray_light = color::BLACK;
             // make the vector bounce around the scene on objects
-            // we get a color of we hit a light source, or else we get the background color
+            // we get a color if we hit a light source, or else we get the background color
             let mut ray = Ray {
                 origin: EYE_POINT,
                 direction: vector,
@@ -140,7 +140,7 @@ impl Grid {
             }
             total_ray_light = &total_ray_light + &ray_light;
         }
-        (&total_ray_light * (1. / number_of_bounces as f64)).new_from_color()
+        (&total_ray_light * (1. / number_of_points_per_pixel as f64)).new_from_color()
     }
 
     pub fn make_image(
