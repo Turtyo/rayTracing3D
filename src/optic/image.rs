@@ -17,7 +17,7 @@ const PIXEL_SIZE: f64 = 1e-2;
 const EYE_POINT: Point = Point {
     x: 0.,
     y: 0.,
-    z: -1.,
+    z: -10.,
 };
 const GRID_CENTER_POINT: Point = Point {
     x: 0.,
@@ -45,7 +45,9 @@ pub fn get_background_color() -> Result<Color, RayTracingError> {
 
 #[derive(Debug)]
 pub struct Grid {
-    pub colors: [[Color; GRID_WIDTH]; GRID_HEIGHT],
+    width: usize,
+    height: usize,
+    pub colors: Vec<Vec<Color>>,
 }
 
 impl Grid {
@@ -151,8 +153,8 @@ impl Grid {
         let rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
         let mut unit_disc_iter: DistIter<UnitDisc, ChaCha8Rng, [f64; 2]> =
             UnitDisc.sample_iter(rng);
-        for pixel_height_index in 0..GRID_HEIGHT {
-            for pixel_width_index in 0..GRID_WIDTH {
+        for pixel_height_index in 0..self.height {
+            for pixel_width_index in 0..self.width {
                 let pixel_color = Grid::trace_pixel_color(
                     pixel_height_index,
                     pixel_width_index,
@@ -182,7 +184,9 @@ impl Grid {
 impl Default for Grid {
     fn default() -> Self {
         Grid {
-            colors: [[color::BLACK; GRID_WIDTH]; GRID_HEIGHT],
+            width: GRID_WIDTH,
+            height: GRID_HEIGHT,
+            colors: vec![vec![color::BLACK; GRID_WIDTH]; GRID_HEIGHT],
         }
     }
 }
