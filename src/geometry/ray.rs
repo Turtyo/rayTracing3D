@@ -6,7 +6,7 @@ use super::shape::Sphere;
 use super::vector::{UnitVector, Vector};
 
 use rand_chacha::{self, ChaCha8Rng};
-use rand_distr::{self, DistIter, UnitDisc};
+use rand_distr::{self, DistIter, UnitDisc, UnitSphere};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Ray {
@@ -88,7 +88,10 @@ impl Ray {
 
     pub fn first_point_hit_by_ray<'a>(
         &self,
-        objects: &Vec<&'a Object>, 
+        objects: &Vec<&'a Object>,
+        ignore_object: Option<&Object>, 
+        /* this is needed in the case where we don't want a ray to be trapped inside a sphere 
+        due to float point error when calculating intersections in several consecutive bounces */ 
     ) -> Result<Option<HitInfo<'a>>, RayTracingError> {
         let mut hit_info_closest_point = HitInfo {
             object: objects[0],
@@ -101,7 +104,12 @@ impl Ray {
             hit_distance: f64::MAX,
         };
         let mut ray_has_hit_object = false;
-        for object in objects {
+        let objects_to_iter = objects.iter().filter(|object| match ignore_object {
+            Some(object_to_ignore) => object.shape != object_to_ignore.shape,
+            None => true,
+        });
+        // ! PERF : it might be faster to just check against the value inside the for loop
+        for object in objects_to_iter {
             if let Some(hit_info) = self.intersect(object)? {
                 if hit_info.hit_distance <= hit_info_closest_point.hit_distance {
                     hit_info_closest_point = hit_info;
@@ -143,8 +151,22 @@ impl Ray {
             })
         }
     }
-
-    pub fn cos_weighted_random_ray(
+   
+    pub fn cos_weighted_random_ray_unit_sphere(
+        point: &Point,
+        normal: &UnitVector,
+        unit_sphere_iter: &mut DistIter<UnitSphere, ChaCha8Rng, [f64; 3]>,
+    ) -> Result<Self, RayTracingError> {
+        // based on https://www.iue.tuwien.ac.at/phd/ertl/node100.html
+        let [x,y,z] = match unit_sphere_iter.next() {
+            Some(arr) => arr,
+            None => return Err(RayTracingError::IteratorDepleted()),
+        };
+        let direction = (normal + &(Vector::new_from_coordinates(x, y, z)?))?.direction;
+        Ok(Ray{origin: *point, direction})
+    }
+    
+    pub fn cos_weighted_random_ray_unit_disc(
         point: &Point,
         normal: &UnitVector,
         unit_disc_iter: &mut DistIter<UnitDisc, ChaCha8Rng, [f64; 2]>,
@@ -156,7 +178,7 @@ impl Ray {
         // this allows for seeding
         let [x, y] = match unit_disc_iter.next() {
             Some(values) => values,
-            _ => return Err(RayTracingError::IteratorDepleted()),
+            None => return Err(RayTracingError::IteratorDepleted()),
         };
 
         // ! this might go wrong
@@ -168,6 +190,29 @@ impl Ray {
             direction: ray_vector.direction,
         })
     }
+    
+    pub fn uniform_weighted_random_ray(
+        point: &Point,
+        normal: &UnitVector,
+        unit_sphere_iter: &mut DistIter<UnitSphere, ChaCha8Rng, [f64; 3]>,
+    ) -> Result<Self, RayTracingError> {
+        let [x,y,z] = match unit_sphere_iter.next() {
+            Some(arr) => arr,
+            None => return Err(RayTracingError::IteratorDepleted()),
+        };
+        let direction = UnitVector::new_from_coordinates(x, y, z)?;
+        let angle = normal.angle_with(&direction);
+        if angle < 0. {
+            let reverse_direction = (-1. * &direction).direction;
+            Ok(Ray{origin: *point, direction: reverse_direction})
+        }
+        else {
+            Ok(Ray{origin: *point, direction})
+        }
+        
+    }
+
+    
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -353,7 +398,7 @@ mod tests {
 
         /* First hit test, should hit sphere 2 */
 
-        if let Some(hit) = ray.first_point_hit_by_ray(&objects)? {
+        if let Some(hit) = ray.first_point_hit_by_ray(&objects, None)? {
             assert_eq!(&(hit.object.shape), &sphere_2);
             let expected_point =
                 Point::new(-5.256205273754008, -1.133469952831104, 0.862815095680144);
@@ -381,7 +426,7 @@ mod tests {
         objects.remove(1);
         objects.push(&object_2_modified);
 
-        if let Some(hit) = ray.first_point_hit_by_ray(&objects)? {
+        if let Some(hit) = ray.first_point_hit_by_ray(&objects, None)? {
             assert_eq!(&(hit.object.shape), &sphere_1);
             let expected_point =
                 Point::new(-1.72455556675089, 3.40165042437406, -0.149017016715949);
@@ -407,7 +452,7 @@ mod tests {
         objects.remove(0);
         objects.push(&object_1_modified);
 
-        if let Some(hit) = ray.first_point_hit_by_ray(&objects)? {
+        if let Some(hit) = ray.first_point_hit_by_ray(&objects, None)? {
             panic!("Ray should have hit nothing but got hit info : {:?}", hit);
         } else {
             Ok(())
@@ -518,7 +563,7 @@ mod tests {
             let mut temp_vec = vec![(0., 0., 0.); point_number];
             for i in 0..point_number {
                 let ray =
-                    Ray::cos_weighted_random_ray(&origin_point, &normal_vector, &mut iter_rng)?;
+                    Ray::cos_weighted_random_ray_unit_disc(&origin_point, &normal_vector, &mut iter_rng)?;
                 temp_vec[i] = (ray.direction.x(), ray.direction.y(), ray.direction.z());
             }
             temp_vec

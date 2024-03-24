@@ -91,7 +91,7 @@ impl Sphere {
             .source_is_above_horizon(sphere_point, source)?
         {
             let ray = Ray::new_from_points(source, sphere_point)?;
-            if let Some(hit_info) = ray.first_point_hit_by_ray(objects)? {
+            if let Some(hit_info) = ray.first_point_hit_by_ray(objects, None)? {
                 Ok(*sphere_point == hit_info.point_hit)
             } else {
                 Err(RayTracingError::RayBetweenPointsDoesNotHitPoint(

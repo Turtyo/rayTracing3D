@@ -7,7 +7,7 @@ use crate::{
 use image::{Rgb, RgbImage};
 use rand::SeedableRng;
 use rand_chacha::{self, ChaCha8Rng};
-use rand_distr::{self, DistIter, Distribution, UnitDisc};
+use rand_distr::{self, DistIter, Distribution, UnitSphere};
 
 use super::color::{self, Color};
 
@@ -18,7 +18,7 @@ const EYE_POINT: Point = Point {
     x: 0.,
     y: 0.,
     z: -10.,
-};
+}; // should change functions to take the position as an argument and not refer to this
 const GRID_CENTER_POINT: Point = Point {
     x: 0.,
     y: 0.,
@@ -40,7 +40,7 @@ Axis orientation
 ----------------------------*/
 
 pub fn get_background_color() -> Result<Color, RayTracingError> {
-    Color::new(0.5, 0.5, 0.5)
+    Color::new(0., 0., 0.0)
 }
 
 #[derive(Debug)]
@@ -51,7 +51,6 @@ pub struct Grid {
 }
 
 impl Grid {
-    #[allow(unused_variables)] // ! number of points will be used later on for the random selection
     fn pixel_point_selection(
         pixel_width_index: usize,
         pixel_height_index: usize,
@@ -66,7 +65,7 @@ impl Grid {
         let pixel_center_point = Point::new(pixel_center_point_x, pixel_center_point_y, 0.);
         // default implementation for now, just return the center point of the pixel
         // * will try to return a random distribution of points in the pixel for anti-aliasing later
-        vec![pixel_center_point]
+        vec![pixel_center_point; number_of_points_per_pixel]
     }
 
     fn ray_eye_pixel_point(
@@ -93,7 +92,7 @@ impl Grid {
         number_of_points_per_pixel: usize,
         number_of_bounces: u64,
         objects: &Vec<&Object>,
-        unit_disc_iter: &mut DistIter<UnitDisc, ChaCha8Rng, [f64; 2]>,
+        unit_disc_iter: &mut DistIter<UnitSphere, ChaCha8Rng, [f64; 3]>,
     ) -> Result<Color, RayTracingError> {
         let vector_eye_pixel = Grid::ray_eye_pixel_point(
             pixel_width_index,
@@ -111,8 +110,9 @@ impl Grid {
                 origin: EYE_POINT,
                 direction: vector,
             };
-            for _ in 0..number_of_bounces {
-                let hit_info = match ray.first_point_hit_by_ray(objects)? {
+            let mut last_hit_sphere = None;
+            for _ in 0..=number_of_bounces {
+                let hit_info = match ray.first_point_hit_by_ray(objects, last_hit_sphere)? {
                     Some(point) => point,
                     None => {
                         if ray_has_hit {
@@ -123,16 +123,28 @@ impl Grid {
                         }
                     }
                 };
+                last_hit_sphere = Some(hit_info.object);
                 // make the ray bounce on the hit object randomly, cos weighted to take into account the Lambert reflectance law
-                ray = Ray::cos_weighted_random_ray(
+                ray = Ray::cos_weighted_random_ray_unit_sphere(
                     &hit_info.point_hit,
                     &hit_info.normal,
                     unit_disc_iter,
                 )?;
                 let light_emitted_by_hit_object = &hit_info.object.material.emission_color
                     * hit_info.object.material.emission_strength();
-                ray_light = &ray_light + &light_emitted_by_hit_object;
+                ray_light = &ray_light + &(&light_emitted_by_hit_object * &ray_color);
                 ray_color = &ray_color * &hit_info.object.material.diffusion_coefficients;
+                #[cfg(test)]
+                {
+                    println!("hit info : {:?}", hit_info);
+                    println!("ray after bounce : {:?}", ray);
+                    println!(
+                        "ligth emitted by hit object : {:?}",
+                        light_emitted_by_hit_object
+                    );
+                    println!("ray light : {:?}", ray_light);
+                    println!("ray color : {:?}", ray_color);
+                }
                 // if the object hit is black, all subsequent bounces of the ray will be black, meaning we can exit early
                 if ray_color == color::BLACK {
                     break;
@@ -151,8 +163,8 @@ impl Grid {
     ) -> Result<(), RayTracingError> {
         let seed: u64 = 1;
         let rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
-        let mut unit_disc_iter: DistIter<UnitDisc, ChaCha8Rng, [f64; 2]> =
-            UnitDisc.sample_iter(rng);
+        let mut unit_disc_iter: DistIter<UnitSphere, ChaCha8Rng, [f64; 3]> =
+            UnitSphere.sample_iter(rng);
         for pixel_height_index in 0..self.height {
             for pixel_width_index in 0..self.width {
                 let pixel_color = Grid::trace_pixel_color(
@@ -193,7 +205,11 @@ impl Default for Grid {
 
 #[cfg(test)]
 mod tests {
-    use crate::error::RayTracingError;
+    use crate::{
+        error::RayTracingError,
+        geometry::shape::Sphere,
+        optic::{color, material::Material}, 
+    };
 
     use super::*;
 
@@ -219,6 +235,81 @@ mod tests {
         let expected_unit_vector = UnitVector::new_from_points(&EYE_POINT, &expected_point)?;
 
         assert_eq!(unit_vector_list[0], expected_unit_vector);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_trace_pixel_color() -> Result<(), RayTracingError> {
+        // * Define RNG
+        let seed: u64 = 25;
+        let rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
+        let mut unit_disc_iter: DistIter<UnitSphere, ChaCha8Rng, [f64; 3]> =
+            UnitSphere.sample_iter(rng);
+
+        // * define parameters
+        let number_of_points_per_pixel = 1;
+        let number_of_bounces = 1;
+        let pixel_height_index = 1080 / 2;
+        let pixel_width_index = 1920 / 2;
+
+        // * define the diffuse sphere of the scene
+        let sphere_support_center = Point {
+            x: 0.,
+            y: -3.9,
+            z: 10.,
+        };
+        let sphere_support = Sphere::new_from_radius(&sphere_support_center, 4.);
+        let sphere_support_material = Material::new(
+            color::BLACK,
+            0.,
+            color::RED.to_diffusion_coefficient().unwrap(),
+            0.,
+        )
+        .unwrap();
+        let object_support = Object {
+            shape: sphere_support,
+            material: sphere_support_material,
+        };
+
+        // * define the light source of the scene
+        let light_source_center = Point {
+            x: 4.8,
+            y: 6.2,
+            z: 8.37,
+        };
+        let light_source = Sphere::new_from_radius(&light_source_center, 3.18);
+        let light_source_material = Material::new(
+            color::WHITE,
+            1.,
+            color::BLACK.to_diffusion_coefficient().unwrap(),
+            0.,
+        )
+        .unwrap();
+        let object_light_source = Object {
+            shape: light_source,
+            material: light_source_material,
+        };
+
+        // sphere positions are chosen so that the light source surface is very close to point defined as the ray going from the eye to the pixel, intersected with the sphere
+        // it's close in the direction of the normal to the surface
+        // not that changing the RNG may make this fail, as it is not guaranted the ray shooting for the surface of the hit sphere will hit the light source
+        // since they are close, the probability of this happening is just very high
+
+        // * object vector
+        let objects = vec![&object_support, &object_light_source];
+
+        let actual_color = Grid::trace_pixel_color(
+            pixel_height_index,
+            pixel_width_index,
+            number_of_points_per_pixel,
+            number_of_bounces,
+            &objects,
+            &mut unit_disc_iter,
+        )?;
+        let expected_color = color::RED;
+
+        assert_eq!(actual_color, expected_color);
 
         Ok(())
     }

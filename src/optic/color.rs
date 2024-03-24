@@ -82,6 +82,16 @@ impl Add for &Color {
     }
 }
 
+impl Mul for &Color {
+    type Output = Color;
+    fn mul(self, rhs: Self) -> Self::Output {
+        let r = self.r * rhs.r;
+        let g = self.g * rhs.g;
+        let b = self.b * rhs.b;
+        Color { r, g, b }
+    }
+}
+
 #[allow(dead_code)]
 pub const BLACK: Color = Color {
     r: 0.,
