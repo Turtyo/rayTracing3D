@@ -2,6 +2,7 @@
 name = "ray_tracing_3d"
 version = "0.1.0"
 edition = "2021"
+description = "A 3D ray tracing tool"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -12,6 +13,7 @@ rand = "0.8.5"
 rand_chacha = "0.3.1"
 rand_distr = "0.4.3"
 image = "0.25.0"
+clap = { version = "4.5.4", features = ["derive"] }
 
 [dev-dependencies]
 plotters = "0.3.5"
