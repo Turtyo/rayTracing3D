@@ -59,7 +59,7 @@ impl Ray {
         }
 
         if delta < -eps {
-            Ok(None)
+            return Ok(None)
         } else {
             // ? so it is possible to have non assigned value if later on we see we will always assign something to it
             let hit_distance: f64;
@@ -69,10 +69,16 @@ impl Ray {
             } else {
                 let first_distance = (-b - delta.sqrt()) / 2.;
                 let second_distance = (-b + delta.sqrt()) / 2.;
-                if first_distance < second_distance {
+                if first_distance >= 0. && second_distance >= 0. {
+                    hit_distance = first_distance.min(second_distance);
+                }
+                else if first_distance >= 0. {
+                    // meaning the second distance was <= 0 due to lazy evaluation of the &&
+                    // previous check necessarily failed due to the second_distance < 0
                     hit_distance = first_distance;
-                } else {
-                    hit_distance = second_distance;
+                } else  {
+                    //both are negative, we know this because of the lazy evaluation 
+                    return Ok(None)
                 }
             }
             let point_hit = &self.origin + &(hit_distance * &self.direction);
@@ -163,7 +169,9 @@ impl Ray {
             None => return Err(RayTracingError::IteratorDepleted()),
         };
         let direction = (normal + &(Vector::new_from_coordinates(x, y, z)?))?.direction;
+
         Ok(Ray{origin: *point, direction})
+        
     }
     
     pub fn cos_weighted_random_ray_unit_disc(
@@ -201,8 +209,7 @@ impl Ray {
             None => return Err(RayTracingError::IteratorDepleted()),
         };
         let direction = UnitVector::new_from_coordinates(x, y, z)?;
-        let angle = normal.angle_with(&direction);
-        if angle < 0. {
+        if normal.scalar_product(&direction) < 0. {
             let reverse_direction = (-1. * &direction).direction;
             Ok(Ray{origin: *point, direction: reverse_direction})
         }
