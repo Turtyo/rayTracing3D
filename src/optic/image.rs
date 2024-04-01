@@ -11,6 +11,8 @@ use rand_distr::{self, DistIter, Distribution, UnitSphere};
 
 use super::color::{self, Color};
 
+use std::path::PathBuf;
+
 const GRID_WIDTH: usize = 1920; // ! should be even
 const GRID_HEIGHT: usize = 1080; // ! should be even
 const PIXEL_SIZE: f64 = 1e-2;
@@ -123,6 +125,7 @@ impl Grid {
                         }
                     }
                 };
+                
                 last_hit_sphere = Some(hit_info.object);
                 // make the ray bounce on the hit object randomly, cos weighted to take into account the Lambert reflectance law
                 ray = Ray::cos_weighted_random_ray_unit_sphere(
@@ -181,7 +184,7 @@ impl Grid {
         Ok(())
     }
 
-    pub fn export_image(self, path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn export_image(self, path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
         let mut image = RgbImage::new(self.width as u32, self.height as u32);
         for (width_index, height_index, pixel) in image.enumerate_pixels_mut() {
             let (r, g, b) = self.colors[height_index as usize][width_index as usize].into_rgb()?;

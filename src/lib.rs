@@ -3,6 +3,8 @@ pub mod geometry;
 pub mod object;
 pub mod optic;
 
+use std::path::PathBuf;
+
 // use float_cmp;
 
 // impl PartialEq for f64 {
@@ -17,7 +19,7 @@ pub fn ray_trace_image(
     number_of_points_per_pixel: usize,
     number_of_bounces: u64,
     objects: &Vec<&object::Object>,
-    export_path: &str,
+    export_path: &PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut grid = optic::image::Grid::default();
     grid.make_image(number_of_points_per_pixel, number_of_bounces, objects)?;
