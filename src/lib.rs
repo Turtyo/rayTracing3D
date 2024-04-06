@@ -23,7 +23,17 @@ pub fn ray_trace_image(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut grid = optic::image::Grid::default();
     grid.make_image(number_of_points_per_pixel, number_of_bounces, objects)?;
-    grid.export_image(export_path)?;
+    grid.export_image(export_path)
+}
 
+
+pub fn ray_trace_image_no_output(
+    number_of_points_per_pixel: usize,
+    number_of_bounces: u64,
+    objects: &Vec<&object::Object>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut grid = optic::image::Grid::default();
+    grid.make_image(number_of_points_per_pixel, number_of_bounces, objects)?;
+    
     Ok(())
 }

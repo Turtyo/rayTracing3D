@@ -17,3 +17,8 @@ clap = { version = "4.5.4", features = ["derive"] }
 
 [dev-dependencies]
 plotters = "0.3.5"
+criterion = "0.5.1"
+
+[[bench]]
+name = "main_bench_diffuse"
+harness = false
