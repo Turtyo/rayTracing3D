@@ -5,7 +5,7 @@ use super::point::Point;
 use super::shape::Sphere;
 use super::vector::Vector;
 
-use rand_chacha::{self, ChaCha8Rng};
+use rand_xorshift::{self, XorShiftRng};
 use rand_distr::{self, DistIter, UnitDisc, UnitSphere};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -155,8 +155,8 @@ impl Ray {
    
     pub fn cos_weighted_random_ray_unit_sphere(
         point: &Point,
-        unit_sphere_iter: &mut DistIter<UnitSphere, ChaCha8Rng, [f64; 3]>,
         normal: &Vector,
+        unit_sphere_iter: &mut DistIter<UnitSphere, XorShiftRng, [f64; 3]>,
     ) -> Result<Self, RayTracingError> {
         // based on https://www.iue.tuwien.ac.at/phd/ertl/node100.html
         let [x,y,z] = match unit_sphere_iter.next() {
@@ -196,8 +196,8 @@ impl Ray {
     
     pub fn uniform_weighted_random_ray(
         point: &Point,
-        unit_sphere_iter: &mut DistIter<UnitSphere, ChaCha8Rng, [f64; 3]>,
         normal: &Vector,
+        unit_sphere_iter: &mut DistIter<UnitSphere, XorShiftRng, [f64; 3]>,
     ) -> Result<Self, RayTracingError> {
         let [x,y,z] = match unit_sphere_iter.next() {
             Some(arr) => arr,
@@ -487,8 +487,8 @@ mod tests {
         let total_frame_number = 157;
 
         let seed = 2;
-        let rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
-        let mut iter_rng: DistIter<UnitSphere, ChaCha8Rng, [f64; 3]> = UnitSphere.sample_iter(rng);
+        let rng = XorShiftRng::seed_from_u64(seed);
+        let mut iter_rng: DistIter<UnitSphere, XorShiftRng, [f64; 3]> = UnitSphere.sample_iter(rng);
 
         let random_points = {
             let point_number = 2000 * factor;
@@ -626,8 +626,8 @@ mod tests {
     //     let egamma = 0.577215664901532860606512090082402431; // The Euler-Mascheroni constant
     //     let normalized_sample_number = (sample_number as f64) * epsilon * epsilon * (digamma(number_of_intervals as f64 + 2.) + egamma - 1.);
     //     println!("number of intervals : {}", number_of_intervals);
-    //     let rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
-    //     let mut iter_rng: DistIter<UnitSphere, ChaCha8Rng, [f64; 3]> = UnitSphere.sample_iter(rng);
+    //     let rng = rand_chacha::XorShiftRng::seed_from_u64(seed);
+    //     let mut iter_rng: DistIter<UnitSphere, XorShiftRng, [f64; 3]> = UnitSphere.sample_iter(rng);
     //     let mut list_of_ray_distribution: Vec<u64> = vec![0; number_of_intervals];
     //     let normal_vector = UnitVector::new_from_coordinates(0.,0.,1.)?;
     //     let origin_point = Point::new(0.,0.,0.);
@@ -705,8 +705,8 @@ mod tests {
     //     let epsilon = 1e-2;
     //     let number_of_intervals = (std::f64::consts::FRAC_PI_2 / epsilon).ceil() as usize;
     //     println!("number of intervals : {}", number_of_intervals);
-    //     let rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
-    //     let mut iter_rng: DistIter<UnitDisc, ChaCha8Rng, [f64; 2]> = UnitDisc.sample_iter(rng);
+    //     let rng = rand_chacha::XorShiftRng::seed_from_u64(seed);
+    //     let mut iter_rng: DistIter<UnitDisc, XorShiftRng, [f64; 2]> = UnitDisc.sample_iter(rng);
     //     let mut list_of_ray_distribution: Vec<u64> = vec![0; number_of_intervals];
     //     let normal_vector = UnitVector::new_from_coordinates(0.7, 12., -2.)?;
     //     let origin_point = Point::new(-1., 0., 1.2);

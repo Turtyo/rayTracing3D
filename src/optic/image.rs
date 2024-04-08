@@ -6,7 +6,7 @@ use crate::{
 
 use image::{Rgb, RgbImage};
 use rand::SeedableRng;
-use rand_chacha::{self, ChaCha8Rng};
+use rand_xorshift::{self, XorShiftRng};
 use rand_distr::{self, DistIter, Distribution, UnitSphere};
 
 use super::color::{self, Color};
@@ -94,7 +94,7 @@ impl Grid {
         number_of_points_per_pixel: usize,
         number_of_bounces: u64,
         objects: &Vec<&Object>,
-        unit_disc_iter: &mut DistIter<UnitSphere, ChaCha8Rng, [f64; 3]>,
+        unit_disc_iter: &mut DistIter<UnitSphere, XorShiftRng, [f64; 3]>,
     ) -> Result<Color, RayTracingError> {
         let vector_eye_pixel = Grid::ray_eye_pixel_point(
             pixel_width_index,
@@ -164,9 +164,9 @@ impl Grid {
         number_of_bounces: u64,
         objects: &Vec<&Object>,
     ) -> Result<(), RayTracingError> {
-        let seed: u64 = 1;
-        let rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
-        let mut unit_disc_iter: DistIter<UnitSphere, ChaCha8Rng, [f64; 3]> =
+        let seed: u64 = 51468412518;
+        let rng = XorShiftRng::seed_from_u64(seed);
+        let mut unit_disc_iter: DistIter<UnitSphere, XorShiftRng, [f64; 3]> =
             UnitSphere.sample_iter(rng);
         for pixel_height_index in 0..self.height {
             for pixel_width_index in 0..self.width {
@@ -246,8 +246,8 @@ mod tests {
     fn test_trace_pixel_color() -> Result<(), RayTracingError> {
         // * Define RNG
         let seed: u64 = 25;
-        let rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
-        let mut unit_disc_iter: DistIter<UnitSphere, ChaCha8Rng, [f64; 3]> =
+        let rng = XorShiftRng::seed_from_u64(seed);
+        let mut unit_disc_iter: DistIter<UnitSphere, XorShiftRng, [f64; 3]> =
             UnitSphere.sample_iter(rng);
 
         // * define parameters
