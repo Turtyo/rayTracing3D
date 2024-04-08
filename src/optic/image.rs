@@ -1,6 +1,6 @@
 use crate::{
     error::RayTracingError,
-    geometry::{point::Point, ray::Ray, vector::UnitVector},
+    geometry::{point::Point, ray::Ray, vector::Vector},
     object::Object,
 };
 
@@ -27,7 +27,7 @@ const GRID_CENTER_POINT: Point = Point {
     z: 0.,
 };
 
-const GRID_CENTER_WIDTH_INDEX: usize = GRID_WIDTH / 2;
+const GRID_CENTER_WIDTH_INDEX: usize = GRID_WIDTH / 2; 
 const GRID_CENTER_HEIGHT_INDEX: usize = GRID_HEIGHT / 2;
 
 /*----------------------------
@@ -74,15 +74,15 @@ impl Grid {
         pixel_width_index: usize,
         pixel_height_index: usize,
         number_of_points_per_pixel: usize,
-    ) -> Result<Vec<UnitVector>, RayTracingError> {
+    ) -> Result<Vec<Vector>, RayTracingError> {
         let pixel_points = Self::pixel_point_selection(
             pixel_width_index,
             pixel_height_index,
             number_of_points_per_pixel,
         );
-        let mut unit_vector_list: Vec<UnitVector> = Vec::new();
+        let mut unit_vector_list: Vec<Vector> = Vec::new();
         for point in pixel_points {
-            let u_vec = UnitVector::new_from_points(&EYE_POINT, &point)?;
+            let u_vec = Vector::new_from_points(&EYE_POINT, &point);
             unit_vector_list.push(u_vec);
         }
         Ok(unit_vector_list)
@@ -235,7 +235,7 @@ mod tests {
 
         let expected_point =
             Grid::pixel_point_selection(GRID_WIDTH / 2 + 20, GRID_HEIGHT / 2 - 25, 1)[0];
-        let expected_unit_vector = UnitVector::new_from_points(&EYE_POINT, &expected_point)?;
+        let expected_unit_vector = Vector::new_from_points(&EYE_POINT, &expected_point);
 
         assert_eq!(unit_vector_list[0], expected_unit_vector);
 

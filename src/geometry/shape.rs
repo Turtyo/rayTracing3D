@@ -61,8 +61,8 @@ impl Sphere {
         );
 
         if self.point_is_on_sphere(sphere_point) {
-            let normal = Vector::new_from_points(&self.center, sphere_point)?;
-            let point_source_vec = Vector::new_from_points(sphere_point, source)?;
+            let normal = Vector::new_from_points(&self.center, sphere_point);
+            let point_source_vec = Vector::new_from_points(sphere_point, source);
             Ok(normal.scalar_product(&point_source_vec) >= 0.)
         } else {
             Err(RayTracingError::PointNotOnSphere(*sphere_point, *self))

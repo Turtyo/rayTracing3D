@@ -3,7 +3,7 @@ use crate::object::Object;
 
 use super::point::Point;
 use super::shape::Sphere;
-use super::vector::{UnitVector, Vector};
+use super::vector::Vector;
 
 use rand_chacha::{self, ChaCha8Rng};
 use rand_distr::{self, DistIter, UnitDisc, UnitSphere};
@@ -11,23 +11,17 @@ use rand_distr::{self, DistIter, UnitDisc, UnitSphere};
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Ray {
     pub origin: Point,
-    pub direction: UnitVector,
+    pub direction: Vector,
 }
 
 impl Ray {
     pub fn new_from_points(origin: &Point, destination: &Point) -> Result<Self, RayTracingError> {
-        let dest = UnitVector::new_from_points(origin, destination)?;
+        let dest = Vector::new_from_points(origin, destination);
         Ok(Ray {
             origin: *origin,
             direction: dest,
         })
     }
-    // ! deprecated (not used)
-    // pub fn point_at_a_distance(&self, scalar: f64) -> Point {
-    //     let Ray { origin, direction } = self;
-    //     let total_displacement = scalar * direction;
-    //     origin + &total_displacement
-    // }
 
     pub fn intersect<'a>(
         &self,
@@ -48,9 +42,10 @@ impl Ray {
         c = CO^2 - r^2
         The equation is d^2 + bd + c = 0 (classic quadratic form)
         */
+        let normalized_dir = &self.direction.normalize()?;
         let eps = 1.0e-12_f64;
-        let vector_co = Vector::new_from_points(&object.shape.center, &self.origin)?;
-        let b = 2. * &self.direction.to_vector().scalar_product(&vector_co);
+        let vector_co = Vector::new_from_points(&object.shape.center, &self.origin);
+        let b = 2. * normalized_dir.scalar_product(&vector_co);
         let c = vector_co.scalar_product(&vector_co) - object.shape.radius.powi(2);
         let delta = b * b - 4. * c;
 
@@ -81,8 +76,8 @@ impl Ray {
                     return Ok(None)
                 }
             }
-            let point_hit = &self.origin + &(hit_distance * &self.direction);
-            let normal = UnitVector::new_from_points(&(object.shape.center), &point_hit)?;
+            let point_hit = &self.origin + &(hit_distance * normalized_dir);
+            let normal = Vector::new_from_points(&(object.shape.center), &point_hit);
             Ok(Some(HitInfo {
                 object,
                 point_hit,
@@ -101,7 +96,7 @@ impl Ray {
     ) -> Result<Option<HitInfo<'a>>, RayTracingError> {
         let mut hit_info_closest_point = HitInfo {
             object: objects[0],
-            normal: UnitVector::new_from_coordinates(1., 0., 0.)?,
+            normal: Vector::new_from_coordinates(1., 0., 0.),
             point_hit: Point {
                 x: 0.,
                 y: 0.,
@@ -143,74 +138,74 @@ impl Ray {
                 object, surface_point, source
             )))
         } else {
-            let point_to_source_vector = Vector::new_from_points(surface_point, source)?;
-            let mut surface_normal_vector = Vector::new_from_points(&object.center, surface_point)?;
+            let point_to_source_vector = Vector::new_from_points(surface_point, source).normalize()?;
+            let mut surface_normal_vector = Vector::new_from_points(&object.center, surface_point).normalize()?;
             // Let D such as R(ay) = N(ormal) + D, thus D = R - N
             // the sym S is : S = N - D = N - (R - N) = 2N - R
             // we also need a right angle between D and N for this to work, so we normalise N to the correct norme
             let teta = point_to_source_vector.angle_with(&surface_normal_vector);
-            surface_normal_vector.norme = point_to_source_vector.norme * teta.cos();
-            let sym_vector = (&(2. * &surface_normal_vector) - &point_to_source_vector)?;
+            surface_normal_vector = &point_to_source_vector * teta.cos();
+            let sym_vector = &(2. * &surface_normal_vector) - &point_to_source_vector;
             Ok(Ray {
                 origin: *surface_point,
-                direction: sym_vector.direction,
+                direction: sym_vector,
             })
         }
     }
    
     pub fn cos_weighted_random_ray_unit_sphere(
         point: &Point,
-        normal: &UnitVector,
         unit_sphere_iter: &mut DistIter<UnitSphere, ChaCha8Rng, [f64; 3]>,
+        normal: &Vector,
     ) -> Result<Self, RayTracingError> {
         // based on https://www.iue.tuwien.ac.at/phd/ertl/node100.html
         let [x,y,z] = match unit_sphere_iter.next() {
             Some(arr) => arr,
             None => return Err(RayTracingError::IteratorDepleted()),
         };
-        let direction = (normal + &(Vector::new_from_coordinates(x, y, z)?))?.direction;
+        let direction = normal + &(Vector::new_from_coordinates(x, y, z));
 
         Ok(Ray{origin: *point, direction})
         
     }
     
-    pub fn cos_weighted_random_ray_unit_disc(
-        point: &Point,
-        normal: &UnitVector,
-        unit_disc_iter: &mut DistIter<UnitDisc, ChaCha8Rng, [f64; 2]>,
-    ) -> Result<Self, RayTracingError> {
-        // based on https://www.pbr-book.org/3ed-2018/Monte_Carlo_Integration/2D_Sampling_with_Multidimensional_Transformations
-        let [t, v] = normal.tangent_plane_vectors();
-        // ! rng should be generated as rand_chacha::ChaCha8Rng::seed_from_u64(seed);
-        // let iter_rng: DistIter<UnitDisc, ChaCha8Rng, [f64; 2]> = UnitDisc.sample_iter(rng);
-        // this allows for seeding
-        let [x, y] = match unit_disc_iter.next() {
-            Some(values) => values,
-            None => return Err(RayTracingError::IteratorDepleted()),
-        };
+    // pub fn cos_weighted_random_ray_unit_disc(
+    //     point: &Point,
+    //     normal: &Vector,
+    //     unit_disc_iter: &mut DistIter<UnitDisc, XorShiftRng, [f64; 2]>,
+    // ) -> Result<Self, RayTracingError> {
+    //     // based on https://www.pbr-book.org/3ed-2018/Monte_Carlo_Integration/2D_Sampling_with_Multidimensional_Transformations
+    //     let [t, v] = normal.tangent_plane_vectors();
+    //     // ! rng should be generated as XorShiftRng::seed_from_u64(seed);
+    //     // let iter_rng: DistIter<UnitDisc, XorShiftRng, [f64; 2]> = UnitDisc.sample_iter(rng);
+    //     // this allows for seeding
+    //     let [x, y] = match unit_disc_iter.next() {
+    //         Some(values) => values,
+    //         None => return Err(RayTracingError::IteratorDepleted()),
+    //     };
 
-        // ! this might go wrong
-        let radius_2 = x * x + y * y;
-        let ray_vector = ((x * &t + y * &v)? + (1. - radius_2).sqrt() * normal)?;
+    //     // ! this might go wrong
+    //     let radius_2 = x * x + y * y;
+    //     let ray_vector = ((x * &t + y * &v)? + (1. - radius_2).sqrt() * normal)?;
 
-        Ok(Ray {
-            origin: *point,
-            direction: ray_vector.direction,
-        })
-    }
+    //     Ok(Ray {
+    //         origin: *point,
+    //         direction: ray_vector.direction,
+    //     })
+    // }
     
     pub fn uniform_weighted_random_ray(
         point: &Point,
-        normal: &UnitVector,
         unit_sphere_iter: &mut DistIter<UnitSphere, ChaCha8Rng, [f64; 3]>,
+        normal: &Vector,
     ) -> Result<Self, RayTracingError> {
         let [x,y,z] = match unit_sphere_iter.next() {
             Some(arr) => arr,
             None => return Err(RayTracingError::IteratorDepleted()),
         };
-        let direction = UnitVector::new_from_coordinates(x, y, z)?;
+        let direction = Vector::new_from_coordinates(x, y, z);
         if normal.scalar_product(&direction) < 0. {
-            let reverse_direction = (-1. * &direction).direction;
+            let reverse_direction = -1. * &direction;
             Ok(Ray{origin: *point, direction: reverse_direction})
         }
         else {
@@ -226,7 +221,7 @@ impl Ray {
 pub struct HitInfo<'a> {
     pub object: &'a Object,
     pub point_hit: Point,
-    pub normal: UnitVector,
+    pub normal: Vector,
     pub hit_distance: f64,
 }
 
@@ -267,7 +262,7 @@ mod tests {
     #[test]
     fn test_new_from_points() -> Result<(), RayTracingError> {
         let ray = Ray::new_from_points(&ORIGIN, &DESTINATION)?;
-        let direction = UnitVector::new_from_points(&ORIGIN, &DESTINATION)?;
+        let direction = Vector::new_from_points(&ORIGIN, &DESTINATION);
 
         assert_eq!(ray.direction, direction);
         assert_eq!(ray.origin, ORIGIN);
@@ -551,73 +546,73 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    #[ignore]
-    fn draw_cos_weighted_random_ray() -> Result<(), Box<dyn std::error::Error>> {
-        const OUT_FILE_NAME: &str = "plot_output/cos_weighted_random_ray.gif";
-        let factor = 2;
-        let eps = 0.01 / (factor as f64);
-        let total_frame_number = 157;
+    // #[test]
+    // #[ignore]
+    // fn draw_cos_weighted_random_ray() -> Result<(), Box<dyn std::error::Error>> {
+    //     const OUT_FILE_NAME: &str = "plot_output/cos_weighted_random_ray.gif";
+    //     let factor = 2;
+    //     let eps = 0.01 / (factor as f64);
+    //     let total_frame_number = 157;
 
-        let seed = 2;
-        let rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
-        let mut iter_rng: DistIter<UnitDisc, ChaCha8Rng, [f64; 2]> = UnitDisc.sample_iter(rng);
+    //     let seed = 2;
+    //     let rng = XorShiftRng::seed_from_u64(seed);
+    //     let mut iter_rng: DistIter<UnitDisc, XorShiftRng, [f64; 2]> = UnitDisc.sample_iter(rng);
 
-        let random_points = {
-            let normal_vector = UnitVector::new_from_coordinates(0., 11., 0.)?;
-            let origin_point = Point::new(-1., 0., 1.2);
-            let point_number = 2000 * factor;
-            let mut temp_vec = vec![(0., 0., 0.); point_number];
-            for i in 0..point_number {
-                let ray =
-                    Ray::cos_weighted_random_ray_unit_disc(&origin_point, &normal_vector, &mut iter_rng)?;
-                temp_vec[i] = (ray.direction.x(), ray.direction.y(), ray.direction.z());
-            }
-            temp_vec
-        };
+    //     let random_points = {
+    //         let normal_vector = Vector::new_from_coordinates(0., 11., 0.);
+    //         let origin_point = Point::new(-1., 0., 1.2);
+    //         let point_number = 2000 * factor;
+    //         let mut temp_vec = vec![(0., 0., 0.); point_number];
+    //         for i in 0..point_number {
+    //             let ray =
+    //                 Ray::cos_weighted_random_ray_unit_disc(&origin_point, &normal_vector, &mut iter_rng)?;
+    //             temp_vec[i] = (ray.direction.x(), ray.direction.y(), ray.direction.z());
+    //         }
+    //         temp_vec
+    //     };
 
-        let root = BitMapBackend::gif(OUT_FILE_NAME, (600, 400), 100)?.into_drawing_area();
+    //     let root = BitMapBackend::gif(OUT_FILE_NAME, (600, 400), 100)?.into_drawing_area();
 
-        for pitch in 0..total_frame_number {
-            println!("frame : {}/{}", pitch + 1, total_frame_number);
-            root.fill(&WHITE)?;
+    //     for pitch in 0..total_frame_number {
+    //         println!("frame : {}/{}", pitch + 1, total_frame_number);
+    //         root.fill(&WHITE)?;
 
-            let mut chart = ChartBuilder::on(&root)
-                .caption("2D Gaussian PDF", ("sans-serif", 20))
-                .build_cartesian_3d(-1.0..1.0, -1.0..1.0, -1.0..1.0)?;
-            chart.with_projection(|mut p| {
-                p.pitch = 1.57 - (1.57 - pitch as f64 / 50.0).abs();
-                p.yaw = 1.57 - (1.57 - pitch as f64 / 50.0).abs();
-                p.scale = 0.7;
-                p.into_matrix() // build the projection matrix
-            });
+    //         let mut chart = ChartBuilder::on(&root)
+    //             .caption("2D Gaussian PDF", ("sans-serif", 20))
+    //             .build_cartesian_3d(-1.0..1.0, -1.0..1.0, -1.0..1.0)?;
+    //         chart.with_projection(|mut p| {
+    //             p.pitch = 1.57 - (1.57 - pitch as f64 / 50.0).abs();
+    //             p.yaw = 1.57 - (1.57 - pitch as f64 / 50.0).abs();
+    //             p.scale = 0.7;
+    //             p.into_matrix() // build the projection matrix
+    //         });
 
-            chart
-                .configure_axes()
-                .light_grid_style(BLACK.mix(0.15))
-                .max_light_lines(3)
-                .draw()?;
+    //         chart
+    //             .configure_axes()
+    //             .light_grid_style(BLACK.mix(0.15))
+    //             .max_light_lines(3)
+    //             .draw()?;
 
-            chart.draw_series(random_points.iter().map(|(x, y, z)| {
-                Cubiod::new(
-                    [
-                        (*x - eps, *y - eps, *z - eps),
-                        (*x + eps, *y + eps, *z + eps),
-                    ],
-                    BLUE.mix(0.1),
-                    BLUE.mix(0.1),
-                )
-            }))?;
+    //         chart.draw_series(random_points.iter().map(|(x, y, z)| {
+    //             Cubiod::new(
+    //                 [
+    //                     (*x - eps, *y - eps, *z - eps),
+    //                     (*x + eps, *y + eps, *z + eps),
+    //                 ],
+    //                 BLUE.mix(0.1),
+    //                 BLUE.mix(0.1),
+    //             )
+    //         }))?;
 
-            root.present()?;
-        }
+    //         root.present()?;
+    //     }
 
-        // To avoid the IO failure being ignored silently, we manually call the present function
-        root.present().expect("Unable to write result to file, please make sure 'plotters-doc-data' dir exists under current dir");
-        println!("Result has been saved to {}", OUT_FILE_NAME);
+    //     // To avoid the IO failure being ignored silently, we manually call the present function
+    //     root.present().expect("Unable to write result to file, please make sure 'plotters-doc-data' dir exists under current dir");
+    //     println!("Result has been saved to {}", OUT_FILE_NAME);
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     // #[test]
     // fn test_uniform_weighted_random_ray() -> Result<(), RayTracingError> {

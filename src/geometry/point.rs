@@ -52,9 +52,9 @@ impl Add<&Vector> for &Point {
     type Output = Point;
     fn add(self, rhs: &Vector) -> Self::Output {
         let mut new_point = *self;
-        new_point.x += rhs.norme * rhs.x();
-        new_point.y += rhs.norme * rhs.y();
-        new_point.z += rhs.norme * rhs.z();
+        new_point.x += rhs.x;
+        new_point.y += rhs.y;
+        new_point.z += rhs.z;
 
         new_point
     }
@@ -109,7 +109,7 @@ mod tests {
 
     #[test]
     fn test_add_vector() -> Result<(), RayTracingError> {
-        let vector = Vector::new_from_coordinates(48.7, -154., 42.69)?;
+        let vector = Vector::new_from_coordinates(48.7, -154., 42.69);
 
         let expected_point = Point {
             x: 49.2,
