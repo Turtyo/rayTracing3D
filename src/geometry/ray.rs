@@ -163,9 +163,9 @@ impl Ray {
             Some(arr) => arr,
             None => return Err(RayTracingError::IteratorDepleted()),
         };
-        let direction = normal + &(Vector::new_from_coordinates(x, y, z));
+        let direction = normal.normalize()? + Vector::new_from_coordinates(x, y, z);
 
-        Ok(Ray{origin: *point, direction})
+        Ok(Ray{origin: *point, direction: direction.normalize()?})
         
     }
     
@@ -546,73 +546,73 @@ mod tests {
         Ok(())
     }
 
-    // #[test]
-    // #[ignore]
-    // fn draw_cos_weighted_random_ray() -> Result<(), Box<dyn std::error::Error>> {
-    //     const OUT_FILE_NAME: &str = "plot_output/cos_weighted_random_ray.gif";
-    //     let factor = 2;
-    //     let eps = 0.01 / (factor as f64);
-    //     let total_frame_number = 157;
+    #[test]
+    #[ignore]
+    fn draw_cos_weighted_random_ray() -> Result<(), Box<dyn std::error::Error>> {
+        const OUT_FILE_NAME: &str = "plot_output/cos_weighted_random_ray.gif";
+        let factor = 2;
+        let eps = 0.01 / (factor as f64);
+        let total_frame_number = 157;
 
-    //     let seed = 2;
-    //     let rng = XorShiftRng::seed_from_u64(seed);
-    //     let mut iter_rng: DistIter<UnitDisc, XorShiftRng, [f64; 2]> = UnitDisc.sample_iter(rng);
+        let seed = 2;
+        let rng = XorShiftRng::seed_from_u64(seed);
+        let mut iter_rng: DistIter<UnitSphere, XorShiftRng, [f64; 3]> = UnitSphere.sample_iter(rng);
 
-    //     let random_points = {
-    //         let normal_vector = Vector::new_from_coordinates(0., 11., 0.);
-    //         let origin_point = Point::new(-1., 0., 1.2);
-    //         let point_number = 2000 * factor;
-    //         let mut temp_vec = vec![(0., 0., 0.); point_number];
-    //         for i in 0..point_number {
-    //             let ray =
-    //                 Ray::cos_weighted_random_ray_unit_disc(&origin_point, &normal_vector, &mut iter_rng)?;
-    //             temp_vec[i] = (ray.direction.x(), ray.direction.y(), ray.direction.z());
-    //         }
-    //         temp_vec
-    //     };
+        let random_points = {
+            let normal_vector = Vector::new_from_coordinates(0., 11., 0.);
+            let origin_point = Point::new(-1., 0., 1.2);
+            let point_number = 2000 * factor;
+            let mut temp_vec = vec![(0., 0., 0.); point_number];
+            for i in 0..point_number {
+                let ray =
+                    Ray::cos_weighted_random_ray_unit_sphere(&origin_point, &normal_vector, &mut iter_rng)?;
+                temp_vec[i] = (ray.direction.x, ray.direction.y, ray.direction.z);
+            }
+            temp_vec
+        };
 
-    //     let root = BitMapBackend::gif(OUT_FILE_NAME, (600, 400), 100)?.into_drawing_area();
+        let root = BitMapBackend::gif(OUT_FILE_NAME, (600, 400), 100)?.into_drawing_area();
 
-    //     for pitch in 0..total_frame_number {
-    //         println!("frame : {}/{}", pitch + 1, total_frame_number);
-    //         root.fill(&WHITE)?;
+        for pitch in 0..total_frame_number {
+            println!("frame : {}/{}", pitch + 1, total_frame_number);
+            root.fill(&WHITE)?;
 
-    //         let mut chart = ChartBuilder::on(&root)
-    //             .caption("2D Gaussian PDF", ("sans-serif", 20))
-    //             .build_cartesian_3d(-1.0..1.0, -1.0..1.0, -1.0..1.0)?;
-    //         chart.with_projection(|mut p| {
-    //             p.pitch = 1.57 - (1.57 - pitch as f64 / 50.0).abs();
-    //             p.yaw = 1.57 - (1.57 - pitch as f64 / 50.0).abs();
-    //             p.scale = 0.7;
-    //             p.into_matrix() // build the projection matrix
-    //         });
+            let mut chart = ChartBuilder::on(&root)
+                .caption("2D Gaussian PDF", ("sans-serif", 20))
+                .build_cartesian_3d(-1.0..1.0, -1.0..1.0, -1.0..1.0)?;
+            chart.with_projection(|mut p| {
+                p.pitch = 1.57 - (1.57 - pitch as f64 / 50.0).abs();
+                p.yaw = 1.57 - (1.57 - pitch as f64 / 50.0).abs();
+                p.scale = 0.7;
+                p.into_matrix() // build the projection matrix
+            });
 
-    //         chart
-    //             .configure_axes()
-    //             .light_grid_style(BLACK.mix(0.15))
-    //             .max_light_lines(3)
-    //             .draw()?;
+            chart
+                .configure_axes()
+                .light_grid_style(BLACK.mix(0.15))
+                .max_light_lines(3)
+                .draw()?;
 
-    //         chart.draw_series(random_points.iter().map(|(x, y, z)| {
-    //             Cubiod::new(
-    //                 [
-    //                     (*x - eps, *y - eps, *z - eps),
-    //                     (*x + eps, *y + eps, *z + eps),
-    //                 ],
-    //                 BLUE.mix(0.1),
-    //                 BLUE.mix(0.1),
-    //             )
-    //         }))?;
+            chart.draw_series(random_points.iter().map(|(x, y, z)| {
+                Cubiod::new(
+                    [
+                        (*x - eps, *y - eps, *z - eps),
+                        (*x + eps, *y + eps, *z + eps),
+                    ],
+                    BLUE.mix(0.1),
+                    BLUE.mix(0.1),
+                )
+            }))?;
 
-    //         root.present()?;
-    //     }
+            root.present()?;
+        }
 
-    //     // To avoid the IO failure being ignored silently, we manually call the present function
-    //     root.present().expect("Unable to write result to file, please make sure 'plotters-doc-data' dir exists under current dir");
-    //     println!("Result has been saved to {}", OUT_FILE_NAME);
+        // To avoid the IO failure being ignored silently, we manually call the present function
+        root.present().expect("Unable to write result to file, please make sure 'plotters-doc-data' dir exists under current dir");
+        println!("Result has been saved to {}", OUT_FILE_NAME);
 
-    //     Ok(())
-    // }
+        Ok(())
+    }
 
     // #[test]
     // fn test_uniform_weighted_random_ray() -> Result<(), RayTracingError> {
